@@ -4,7 +4,12 @@ import jwt
 import pytest
 
 from app.core.config import get_settings
-from app.core.security import create_access_token, decode_access_token, hash_password, verify_password
+from app.core.security import (
+    create_access_token,
+    decode_access_token,
+    hash_password,
+    verify_password,
+)
 
 
 def test_password_hash_verifies_only_matching_password() -> None:
