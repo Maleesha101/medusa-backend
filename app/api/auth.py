@@ -1,14 +1,16 @@
 """Registration, token issuance, and current-user endpoints."""
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.api.dependencies import get_current_user
 from app.core.security import create_access_token, hash_password, verify_password
 from app.db.session import get_db
 from app.models.user import User
-from app.schemas.auth import TokenRequest, TokenResponse, UserPublic, UserRegister
+from app.schemas.auth import TokenResponse, UserPublic, UserRegister
 
 router = APIRouter(prefix="/auth", tags=["authentication"])
 
@@ -25,20 +27,24 @@ def register(payload: UserRegister, db: Session = Depends(get_db)) -> User:
     db.add(user)
     try:
         db.commit()
-    except Exception:
+    except IntegrityError:
         db.rollback()
-        # Covers concurrent attempts that race on the unique database constraint.
         raise HTTPException(status_code=409, detail="An account with this email already exists") from None
     db.refresh(user)
     return user
 
 
 @router.post("/token", response_model=TokenResponse)
-def issue_token(payload: TokenRequest, db: Session = Depends(get_db)) -> TokenResponse:
-    """Exchange valid account credentials for a short-lived bearer token."""
-    email = str(payload.email).strip().lower()
+def issue_token(
+    form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)
+) -> TokenResponse:
+    """Exchange account credentials for a short-lived bearer token.
+
+    The OAuth2 form field named username must contain the user's email address.
+    """
+    email = form_data.username.strip().lower()
     user = db.scalar(select(User).where(User.email == email))
-    if user is None or not verify_password(payload.password, user.password_hash) or not user.is_active:
+    if user is None or not verify_password(form_data.password, user.password_hash) or not user.is_active:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid email or password",
