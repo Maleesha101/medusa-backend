@@ -1,4 +1,24 @@
+
 services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: medusa-backend:v1
+    container_name: medusa-api
+    environment:
+      APP_ENV: development
+      DATABASE_URL: postgresql+psycopg://medusa:medusa_dev_only@postgres:5432/medusa
+      REDIS_URL: redis://redis:6379/0
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
   postgres:
     image: postgres:16-alpine
     environment:
