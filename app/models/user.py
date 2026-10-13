@@ -16,8 +16,8 @@ class User(Base):
         CheckConstraint("role IN ('participant', 'organizer', 'admin')", name="ck_users_role"),
     )
 
-    id: Mapped[int] = mapped_column(primary_key=True, index=True)
-    email: Mapped[str] = mapped_column(String(320), unique=True, index=True, nullable=False)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    email: Mapped[str] = mapped_column(String(320), unique=True, nullable=False)
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     role: Mapped[str] = mapped_column(String(32), nullable=False, default="participant")
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
