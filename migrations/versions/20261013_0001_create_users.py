@@ -30,9 +30,7 @@ def upgrade() -> None:
             server_default=sa.text("now()"),
             nullable=False,
         ),
-        sa.CheckConstraint(
-            "role IN ('participant', 'organizer', 'admin')", name="ck_users_role"
-        ),
+        sa.CheckConstraint("role IN ('participant', 'organizer', 'admin')", name="ck_users_role"),
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint("email"),
     )
