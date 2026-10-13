@@ -29,14 +29,17 @@ def register(payload: UserRegister, db: Session = Depends(get_db)) -> User:
         db.commit()
     except IntegrityError:
         db.rollback()
-        raise HTTPException(status_code=409, detail="An account with this email already exists") from None
+        raise HTTPException(
+            status_code=409, detail="An account with this email already exists"
+        ) from None
     db.refresh(user)
     return user
 
 
 @router.post("/token", response_model=TokenResponse)
 def issue_token(
-    form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)
+    form_data: OAuth2PasswordRequestForm = Depends(),
+    db: Session = Depends(get_db),
 ) -> TokenResponse:
     """Exchange account credentials for a short-lived bearer token.
 
@@ -44,7 +47,11 @@ def issue_token(
     """
     email = form_data.username.strip().lower()
     user = db.scalar(select(User).where(User.email == email))
-    if user is None or not verify_password(form_data.password, user.password_hash) or not user.is_active:
+    if (
+        user is None
+        or not verify_password(form_data.password, user.password_hash)
+        or not user.is_active
+    ):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid email or password",
