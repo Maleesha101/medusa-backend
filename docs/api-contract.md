@@ -6,22 +6,27 @@ All public HTTP endpoints live under `/api/v1`. Breaking changes require a versi
 ## Response conventions
 - Use appropriate HTTP status codes.
 - Use JSON for API responses unless the endpoint intentionally serves a file or stream.
-- Keep error responses consistent; a structured error schema will be introduced before domain endpoints are added.
 - Never expose stack traces or internal implementation details to public clients.
+- User responses must never include password hashes or signing secrets.
 
-## Initial endpoints
+## Identity endpoints
 
-| Method | Path | Purpose | Current status |
+| Method | Path | Purpose | Access |
 | --- | --- | --- | --- |
-| GET | `/api/v1/live` | Process liveness | Implemented |
-| GET | `/api/v1/ready` | Service readiness | Placeholder only; dependency checks are not implemented yet |
-| GET | `/api/v1/platform/branding` | Public branding metadata | Planned |
-| PUT | `/api/v1/admin/platform/branding/header-icon` | Upload/replace shared header icon | Planned |
-| DELETE | `/api/v1/admin/platform/branding/header-icon` | Reset shared header icon | Planned |
+| POST | `/api/v1/auth/register` | Create a participant account | Public; role is always assigned by the server |
+| POST | `/api/v1/auth/token` | Exchange email/password for a short-lived access token | Public |
+| GET | `/api/v1/auth/me` | Return the authenticated user's safe profile | Bearer token |
+| GET | `/api/v1/live` | Process liveness | Public |
+| GET | `/api/v1/ready` | Database readiness | Public |
 
-## Authentication and permissions
-Administrative endpoints must require authenticated identity and explicit permission checks. Do not implement the planned admin endpoints until the authentication/authorization contract is in place or a deliberately scoped interim policy is documented and tested.
+Registration requires a valid email and a password of 12–128 characters. Duplicate email addresses return HTTP 409. Token requests use a JSON body containing `email` and `password`; invalid credentials return a generic HTTP 401 response.
 
-## Health endpoint semantics
-- `/live` indicates the process can answer requests. It should not fail merely because a downstream dependency is temporarily unavailable.
-- `/ready` must eventually check the dependencies required to serve traffic (at minimum the database, and Redis only if required for the deployment). Until these checks exist, the response is a scaffold placeholder and must not be treated as a production readiness signal.
+## Authorization
+Access tokens identify the user; current role and active status are loaded from the database on each authenticated request. Role claims supplied by clients are not trusted. Public registration cannot set role or active status. Use `require_roles(...)` for protected routes and test both allowed and denied access. Administrative endpoints must not be added until their authorization requirements are explicit.
+
+## Token policy
+Tokens are signed using HS256, include issuer, subject, issued-at, and expiration claims, and expire after 15 minutes by default (configurable from 1–60 minutes). Set a unique `AUTH_SECRET_KEY` of at least 32 characters in each deployment. The development placeholder must never be used in production. Refresh-token rotation, revocation, MFA, password reset, and email verification are not implemented in this phase.
+
+## Readiness semantics
+- `/live` indicates the process can answer requests and does not check downstream dependencies.
+- `/ready` executes a lightweight database query and returns HTTP 503 if the database is unavailable. Redis is not currently required by the request path and is not part of this probe.
