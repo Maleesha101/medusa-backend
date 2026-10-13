@@ -27,18 +27,14 @@ def upgrade() -> None:
         sa.Column(
             "created_at",
             sa.DateTime(timezone=True),
-            server_default=sa.text("now()"),
+            server_default=sa.text("CURRENT_TIMESTAMP"),
             nullable=False,
         ),
         sa.CheckConstraint("role IN ('participant', 'organizer', 'admin')", name="ck_users_role"),
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint("email"),
     )
-    op.create_index("ix_users_email", "users", ["email"], unique=True)
-    op.create_index("ix_users_id", "users", ["id"], unique=False)
 
 
 def downgrade() -> None:
-    op.drop_index("ix_users_id", table_name="users")
-    op.drop_index("ix_users_email", table_name="users")
     op.drop_table("users")
