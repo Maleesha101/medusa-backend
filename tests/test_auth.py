@@ -102,7 +102,9 @@ def test_inactive_user_token_is_rejected(client: TestClient, session_factory) ->
 
 
 def test_role_guard_denies_participant(client: TestClient) -> None:
-    def admin_only(user: User = Depends(require_roles("admin"))) -> dict[str, bool]:
+    admin_guard = require_roles("admin")
+
+    def admin_only(user: User = Depends(admin_guard)) -> dict[str, bool]:
         return {"ok": True}
 
     app.add_api_route("/_test/admin-only", admin_only, methods=["GET"])
@@ -120,5 +122,7 @@ def test_role_guard_denies_participant(client: TestClient) -> None:
         assert response.status_code == 403
     finally:
         app.router.routes[:] = [
-            route for route in app.router.routes if getattr(route, "path", None) != "/_test/admin-only"
+            route
+            for route in app.router.routes
+            if getattr(route, "path", None) != "/_test/admin-only"
         ]
