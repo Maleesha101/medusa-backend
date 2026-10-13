@@ -30,5 +30,7 @@ jobs:
         run: ruff check .
       - name: Check formatting
         run: ruff format --check .
+      - name: Apply migrations to a clean database
+        run: alembic upgrade head
       - name: Run tests
         run: pytest
