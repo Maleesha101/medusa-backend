@@ -1,6 +1,11 @@
+"""Environment-backed application settings."""
+
 from functools import lru_cache
 
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+_DEVELOPMENT_SECRET = "development-only-change-this-key-before-deployment"
 
 
 class Settings(BaseSettings):
@@ -10,6 +15,9 @@ class Settings(BaseSettings):
     api_v1_prefix: str = "/api/v1"
     database_url: str
     redis_url: str = "redis://localhost:6379/0"
+    auth_secret_key: str = _DEVELOPMENT_SECRET
+    access_token_expire_minutes: int = Field(default=15, ge=1, le=60)
+    token_issuer: str = "medusa-backend"
 
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -17,6 +25,19 @@ class Settings(BaseSettings):
         extra="ignore",
         case_sensitive=False,
     )
+
+    @field_validator("auth_secret_key")
+    @classmethod
+    def validate_secret_length(cls, value: str) -> str:
+        if len(value) < 32:
+            raise ValueError("AUTH_SECRET_KEY must be at least 32 characters")
+        return value
+
+    @model_validator(mode="after")
+    def validate_production_secret(self) -> "Settings":
+        if self.app_env.lower() in {"production", "prod"} and self.auth_secret_key == _DEVELOPMENT_SECRET:
+            raise ValueError("Set a unique AUTH_SECRET_KEY before running in production")
+        return self
 
 
 @lru_cache
