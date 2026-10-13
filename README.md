@@ -10,7 +10,7 @@ The repository contains the application foundation and the first identity/authen
 
 MEDUSA uses a **modular monolith** initially. Domain boundaries are explicit, but the application is deployed as one API until operational evidence justifies extracting services.
 
-- **API:** FastAPI, Python, versioned REST API under `/api/v1`
+- **API:** FastAPI, Python, versioned REST API under /api/v1
 - **Persistence:** PostgreSQL with SQLAlchemy and Alembic migrations
 - **Cache and async jobs:** Redis and a worker process
 - **Realtime:** WebSockets for live competition and scoreboard updates
@@ -19,17 +19,17 @@ MEDUSA uses a **modular monolith** initially. Domain boundaries are explicit, bu
 
 ## Implemented endpoints
 
-- `GET /api/v1/live` — liveness probe
-- `GET /api/v1/ready` — database readiness probe
-- `POST /api/v1/auth/register` — participant registration
-- `POST /api/v1/auth/token` — email/password token issuance
-- `GET /api/v1/auth/me` — authenticated user's safe profile
+- GET /api/v1/live — liveness probe
+- GET /api/v1/ready — database readiness probe
+- POST /api/v1/auth/register — participant registration
+- POST /api/v1/auth/token — OAuth2 form-based email/password token issuance (username field contains the email)
+- GET /api/v1/auth/me — authenticated user's safe profile
 
-Authentication uses Argon2 password hashing and short-lived signed bearer tokens. Roles are resolved from the database rather than trusted from token claims. See [API contract](docs/api-contract.md) and [security baseline](docs/security-baseline.md).
+Authentication uses Argon2 password hashing and short-lived signed bearer tokens. Roles are resolved from the database rather than trusted from token claims. See docs/api-contract.md and docs/security-baseline.md.
 
 ## Local development
 
-1. Copy `.env.example` to `.env` and keep the values local.
+1. Copy .env.example to .env and keep the values local.
 2. Start services and build the API:
 
    ```bash
@@ -42,9 +42,9 @@ Authentication uses Argon2 password hashing and short-lived signed bearer tokens
    docker compose exec api alembic upgrade head
    ```
 
-4. Open the interactive API documentation at `http://localhost:8000/docs`.
+4. Open the interactive API documentation at http://localhost:8000/docs.
 
-The Compose database password and signing key are development-only values. Replace both through deployment secrets before any non-local deployment. Do not commit `.env` or real credentials.
+The Compose database password and signing key are development-only values. Replace both through deployment secrets before any non-local deployment. Do not commit .env or real credentials.
 
 ## Delivery phases
 
