@@ -13,8 +13,9 @@ jobs:
   checks:
     runs-on: ubuntu-latest
     env:
-      DATABASE_URL: postgresql+psycopg://medusa:medusa_dev_only@localhost:5432/medusa
+      DATABASE_URL: sqlite+pysqlite:///./ci.db
       REDIS_URL: redis://localhost:6379/0
+      AUTH_SECRET_KEY: ci-only-signing-secret-change-before-deployment-0001
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
