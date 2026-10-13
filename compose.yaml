@@ -1,0 +1,49 @@
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: medusa-backend:v1
+    container_name: medusa-api
+    environment:
+      APP_ENV: development
+      DATABASE_URL: postgresql+psycopg://medusa:medusa_dev_only@postgres:5432/medusa
+      REDIS_URL: redis://redis:6379/0
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: medusa
+      POSTGRES_USER: medusa
+      POSTGRES_PASSWORD: medusa_dev_only
+    ports:
+      - "5432:5432"
+    volumes:
+      - medusa_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U medusa -d medusa"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  medusa_postgres_data:

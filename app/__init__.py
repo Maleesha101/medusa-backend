@@ -1,0 +1,1 @@
+"""MEDUSA backend application package."""
