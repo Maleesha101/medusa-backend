@@ -1,4 +1,11 @@
-from fastapi import APIRouter
+"""Liveness and dependency readiness probes."""
+
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm import Session
+
+from app.db.session import get_db
 
 router = APIRouter(tags=["health"])
 
@@ -10,6 +17,13 @@ def liveness() -> dict[str, str]:
 
 
 @router.get("/ready", summary="Readiness probe")
-def readiness() -> dict[str, str]:
-    """Placeholder readiness probe; dependency checks will be added with DB integration."""
+def readiness(db: Session = Depends(get_db)) -> dict[str, str]:
+    """Report ready only when the database accepts a lightweight query."""
+    try:
+        db.execute(text("SELECT 1"))
+    except SQLAlchemyError:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Required dependency unavailable",
+        ) from None
     return {"status": "ready"}
