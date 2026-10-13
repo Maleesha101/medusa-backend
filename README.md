@@ -4,11 +4,11 @@ The backend platform for **MEDUSA** — a modular, security-first CTF and compet
 
 ## Project status
 
-The repository is being bootstrapped. The first implementation phase establishes the application foundation, local development environment, configuration conventions, and API contracts before competition features are added.
+The repository contains the application foundation and the first identity/authentication slice. It is not yet production-ready. Competition, team, challenge, submission, scoring, audit persistence, and sandbox APIs remain future work.
 
 ## Architecture direction
 
-MEDUSA uses a **modular monolith** initially. Domain boundaries are explicit, but the system is deployed as one API application until operational evidence justifies extracting services.
+MEDUSA uses a **modular monolith** initially. Domain boundaries are explicit, but the application is deployed as one API until operational evidence justifies extracting services.
 
 - **API:** FastAPI, Python, versioned REST API under `/api/v1`
 - **Persistence:** PostgreSQL with SQLAlchemy and Alembic migrations
@@ -17,27 +17,44 @@ MEDUSA uses a **modular monolith** initially. Domain boundaries are explicit, bu
 - **Object storage:** S3-compatible storage for uploaded assets and challenge artifacts
 - **Deployment:** Docker-based local development, with production hardening added in later phases
 
-## Planned domain modules
+## Implemented endpoints
 
-- Platform settings and branding
-- Identity, authentication, authorization, and audit events
-- Organizations, universities, users, teams, and memberships
-- Competitions, rounds, challenges, submissions, and scoring
-- Challenge instances and sandbox lifecycle
-- Scoreboard and realtime events
-- Security operations / SOC capabilities
-- Background jobs, notifications, and integrations
+- `GET /api/v1/live` — liveness probe
+- `GET /api/v1/ready` — database readiness probe
+- `POST /api/v1/auth/register` — participant registration
+- `POST /api/v1/auth/token` — email/password token issuance
+- `GET /api/v1/auth/me` — authenticated user's safe profile
 
-Each module should own its routes, schemas, services, persistence models, and tests where appropriate. Cross-module communication should use explicit service interfaces rather than importing another module's internals.
+Authentication uses Argon2 password hashing and short-lived signed bearer tokens. Roles are resolved from the database rather than trusted from token claims. See [API contract](docs/api-contract.md) and [security baseline](docs/security-baseline.md).
+
+## Local development
+
+1. Copy `.env.example` to `.env` and keep the values local.
+2. Start services and build the API:
+
+   ```bash
+   docker compose up --build -d
+   ```
+
+3. Apply database migrations:
+
+   ```bash
+   docker compose exec api alembic upgrade head
+   ```
+
+4. Open the interactive API documentation at `http://localhost:8000/docs`.
+
+The Compose database password and signing key are development-only values. Replace both through deployment secrets before any non-local deployment. Do not commit `.env` or real credentials.
 
 ## Delivery phases
 
 1. **Foundation:** repository conventions, configuration, health endpoints, local dependencies, CI, and architecture documentation.
-2. **Identity and competition core:** users, roles, organizations, teams, competitions, rounds, and audit logging.
-3. **CTF engine:** challenges, submissions, flag validation, scoring, and scoreboard.
-4. **Infrastructure integration:** ephemeral challenge instances, sandbox controller, resource limits, and isolation.
-5. **Realtime and SOC:** WebSocket events, alerts, operational visibility, and integrations.
-6. **Hardening and scale:** threat modeling, rate limits, load testing, observability, backups, and deployment security.
+2. **Identity foundation:** users, password hashing, access tokens, role checks, and schema migrations.
+3. **Competition core:** organizations, teams, memberships, competitions, rounds, and audit logging.
+4. **CTF engine:** challenges, submissions, flag validation, scoring, and scoreboard.
+5. **Infrastructure integration:** ephemeral challenge instances, sandbox controller, resource limits, and isolation.
+6. **Realtime and SOC:** WebSocket events, alerts, operational visibility, and integrations.
+7. **Hardening and scale:** threat modeling, rate limits, load testing, observability, backups, and deployment security.
 
 ## Security principles
 
@@ -48,10 +65,7 @@ Each module should own its routes, schemas, services, persistence models, and te
 - Treat challenge containers and uploaded files as untrusted.
 - Apply least privilege, network isolation, resource quotas, and explicit lifecycle controls.
 - Never expose internal infrastructure controls directly to participant-facing clients.
-
-## Local development
-
-The exact setup commands and environment variables will be documented as the foundation scaffold is added. Never commit real credentials; use `.env.example` as the safe template.
+- Do not claim production readiness until security, reliability, and deployment checks have been completed.
 
 ## Engineering workflow
 
@@ -59,4 +73,3 @@ The exact setup commands and environment variables will be documented as the fou
 - Keep changes small enough to review and test.
 - Add tests alongside behavior.
 - Update API and architecture documentation when contracts or module boundaries change.
-- Do not claim production readiness until security, reliability, and deployment checks have been completed.
