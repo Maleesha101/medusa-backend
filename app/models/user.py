@@ -13,9 +13,7 @@ class User(Base):
 
     __tablename__ = "users"
     __table_args__ = (
-        CheckConstraint(
-            "role IN ('participant', 'organizer', 'admin')", name="ck_users_role"
-        ),
+        CheckConstraint("role IN ('participant', 'organizer', 'admin')", name="ck_users_role"),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
