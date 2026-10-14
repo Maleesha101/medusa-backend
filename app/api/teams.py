@@ -134,7 +134,10 @@ def join_team(
         db.commit()
     except IntegrityError:
         db.rollback()
-        raise HTTPException(status_code=409, detail="You are already a member of this team") from None
+        raise HTTPException(
+            status_code=409,
+            detail="You are already a member of this team",
+        ) from None
     return _team_detail(db, team)
 
 
