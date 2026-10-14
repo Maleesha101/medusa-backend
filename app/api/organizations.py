@@ -17,11 +17,7 @@ router = APIRouter(prefix="/organizations", tags=["organizations"])
 @router.get("", response_model=list[OrganizationPublic])
 def list_organizations(db: Session = Depends(get_db)) -> list[Organization]:
     """List active organizations."""
-    query = (
-        select(Organization)
-        .where(Organization.is_active.is_(True))
-        .order_by(Organization.name)
-    )
+    query = select(Organization).where(Organization.is_active.is_(True)).order_by(Organization.name)
     return list(db.scalars(query).all())
 
 
