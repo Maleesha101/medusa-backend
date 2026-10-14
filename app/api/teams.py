@@ -58,9 +58,7 @@ def list_teams(
     _active_organization(db, organization_id)
     return list(
         db.scalars(
-            select(Team)
-            .where(Team.organization_id == organization_id)
-            .order_by(Team.name)
+            select(Team).where(Team.organization_id == organization_id).order_by(Team.name)
         ).all()
     )
 
