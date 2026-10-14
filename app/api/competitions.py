@@ -95,7 +95,7 @@ def get_competition(
 ) -> Competition:
     """Get public competitions or a private competition by an authorized account."""
     competition = _competition_or_404(db, competition_id)
-    if not competition.is_public:
+    if not competition.is_public or competition.status not in {"published", "active", "completed"}:
         raise HTTPException(status_code=404, detail="Competition not found")
     return competition
 
