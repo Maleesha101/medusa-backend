@@ -1,0 +1,142 @@
+### MEDUSA API — Organizations, Teams & Memberships
+### Install the VS Code REST Client extension to send these requests.
+### Start the API and apply migrations first:
+### docker compose up --build -d
+### docker compose exec api alembic upgrade head
+###
+### Use a local development account. Public registration creates a participant.
+### Organization creation requires an organizer/admin token.
+### Never put real production credentials in this file.
+
+@baseUrl = http://localhost:8000/api/v1
+@organizerEmail = organizer@example.com
+@memberEmail = member@example.com
+@password = Replace-With-A-Long-Local-Test-Password
+@organizationSlug = uok-rest-client
+@organizationName = University of Kelaniya REST Client Test
+@teamName = MEDUSA REST Client Team
+
+### 1. Health check
+GET {{baseUrl}}/live
+
+### 2. Database readiness
+GET {{baseUrl}}/ready
+
+### 3. Register organizer test account (new account only)
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+
+{
+  "email": "{{organizerEmail}}",
+  "password": "{{password}}"
+}
+
+### 4. Login as organizer
+### IMPORTANT: the account must already have organizer/admin role in the database.
+### If this is a newly registered participant, this request succeeds but organization creation returns 403.
+# @name organizerLogin
+POST {{baseUrl}}/auth/token
+Content-Type: application/x-www-form-urlencoded
+
+username={{organizerEmail}}&password={{password}}
+
+### 5. Create organization (organizer/admin only)
+# @name createOrganization
+POST {{baseUrl}}/organizations
+Authorization: Bearer {{organizerLogin.response.body.access_token}}
+Content-Type: application/json
+
+{
+  "name": "{{organizationName}}",
+  "slug": "{{organizationSlug}}",
+  "description": "Local REST Client test organization"
+}
+
+### 6. List active organizations
+GET {{baseUrl}}/organizations
+
+### 7. Get organization by ID
+### Set organizationId to the ID returned by request 5.
+@organizationId = 1
+GET {{baseUrl}}/organizations/{{organizationId}}
+
+### 8. List teams in organization
+GET {{baseUrl}}/organizations/{{organizationId}}/teams
+
+### 9. Create a team (authenticated user becomes captain)
+# @name createTeam
+POST {{baseUrl}}/organizations/{{organizationId}}/teams
+Authorization: Bearer {{organizerLogin.response.body.access_token}}
+Content-Type: application/json
+
+{
+  "name": "{{teamName}}"
+}
+
+### 10. Get team details and members
+### Set teamId to the ID returned by request 9.
+@teamId = 1
+GET {{baseUrl}}/teams/{{teamId}}
+
+### 11. Register member test account (new account only)
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+
+{
+  "email": "{{memberEmail}}",
+  "password": "{{password}}"
+}
+
+### 12. Login as member
+# @name memberLogin
+POST {{baseUrl}}/auth/token
+Content-Type: application/x-www-form-urlencoded
+
+username={{memberEmail}}&password={{password}}
+
+### 13. Join team as member
+POST {{baseUrl}}/teams/{{teamId}}/join
+Authorization: Bearer {{memberLogin.response.body.access_token}}
+
+### 14. Try joining the same team again (expected 409 Conflict)
+POST {{baseUrl}}/teams/{{teamId}}/join
+Authorization: Bearer {{memberLogin.response.body.access_token}}
+
+### 15. Leave team as member (expected 204 No Content)
+DELETE {{baseUrl}}/teams/{{teamId}}/leave
+Authorization: Bearer {{memberLogin.response.body.access_token}}
+
+### 16. Try creating an organization as a participant (expected 403 Forbidden)
+POST {{baseUrl}}/organizations
+Authorization: Bearer {{memberLogin.response.body.access_token}}
+Content-Type: application/json
+
+{
+  "name": "Should Be Forbidden",
+  "slug": "should-be-forbidden"
+}
+
+### 17. Duplicate organization slug (expected 409 Conflict)
+### Run after request 5 succeeds.
+POST {{baseUrl}}/organizations
+Authorization: Bearer {{organizerLogin.response.body.access_token}}
+Content-Type: application/json
+
+{
+  "name": "Duplicate Slug Test",
+  "slug": "{{organizationSlug}}"
+}
+
+### 18. Duplicate team name in the same organization (expected 409 Conflict)
+### Run after request 9 succeeds. This request uses the organizer token.
+POST {{baseUrl}}/organizations/{{organizationId}}/teams
+Authorization: Bearer {{organizerLogin.response.body.access_token}}
+Content-Type: application/json
+
+{
+  "name": "{{teamName}}"
+}
+
+### 19. Captain cannot leave before captaincy transfer is implemented (expected 409 Conflict)
+DELETE {{baseUrl}}/teams/{{teamId}}/leave
+Authorization: Bearer {{organizerLogin.response.body.access_token}}

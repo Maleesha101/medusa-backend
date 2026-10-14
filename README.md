@@ -4,7 +4,7 @@ The backend platform for **MEDUSA** — a modular, security-first CTF and compet
 
 ## Project status
 
-The repository contains the application foundation and the first identity/authentication slice. It is not yet production-ready. Competition, team, challenge, submission, scoring, audit persistence, and sandbox APIs remain future work.
+The repository contains the application foundation, identity/authentication, and initial organization/team membership APIs. It is not yet production-ready. Competition rounds, challenges, submissions, scoring, persistent audit events, and sandbox APIs remain future work.
 
 ## Architecture direction
 
@@ -19,13 +19,15 @@ MEDUSA uses a **modular monolith** initially. Domain boundaries are explicit, bu
 
 ## Implemented endpoints
 
-- GET /api/v1/live — liveness probe
-- GET /api/v1/ready — database readiness probe
-- POST /api/v1/auth/register — participant registration
-- POST /api/v1/auth/token — OAuth2 form-based email/password token issuance (username field contains the email)
-- GET /api/v1/auth/me — authenticated user's safe profile
+- GET /api/v1/live and GET /api/v1/ready — health probes
+- POST /api/v1/auth/register, POST /api/v1/auth/token, GET /api/v1/auth/me — identity and authentication
+- GET/POST /api/v1/organizations — list and create organizations
+- GET /api/v1/organizations/{organization_id} — get an organization
+- GET/POST /api/v1/organizations/{organization_id}/teams — list and create teams
+- GET /api/v1/teams/{team_id} — team details and members
+- POST /api/v1/teams/{team_id}/join and DELETE /api/v1/teams/{team_id}/leave — membership operations
 
-Authentication uses Argon2 password hashing and short-lived signed bearer tokens. Roles are resolved from the database rather than trusted from token claims. See docs/api-contract.md and docs/security-baseline.md.
+Organization creation requires an organizer or admin role. Public registration always creates a participant; assign organizer/admin roles through a controlled administrative process. Team creators become captains. See docs/api-contract.md and docs/security-baseline.md for access rules and limitations.
 
 ## Local development
 
@@ -46,12 +48,25 @@ Authentication uses Argon2 password hashing and short-lived signed bearer tokens
 
 The Compose database password and signing key are development-only values. Replace both through deployment secrets before any non-local deployment. Do not commit .env or real credentials.
 
+## Running tests
+
+The production Docker image intentionally installs runtime dependencies only. Install the optional development dependencies in a local virtual environment to run pytest and Ruff:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -e ".[dev]"
+python -m pytest -v
+ruff check .
+ruff format --check .
+```
+
 ## Delivery phases
 
 1. **Foundation:** repository conventions, configuration, health endpoints, local dependencies, CI, and architecture documentation.
 2. **Identity foundation:** users, password hashing, access tokens, role checks, and schema migrations.
-3. **Competition core:** organizations, teams, memberships, competitions, rounds, and audit logging.
-4. **CTF engine:** challenges, submissions, flag validation, scoring, and scoreboard.
+3. **Organization/team foundation:** organizations, teams, membership, and access control.
+4. **CTF engine:** competitions, rounds, challenges, submissions, flag validation, scoring, and scoreboard.
 5. **Infrastructure integration:** ephemeral challenge instances, sandbox controller, resource limits, and isolation.
 6. **Realtime and SOC:** WebSocket events, alerts, operational visibility, and integrations.
 7. **Hardening and scale:** threat modeling, rate limits, load testing, observability, backups, and deployment security.
