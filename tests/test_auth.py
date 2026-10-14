@@ -118,9 +118,7 @@ def test_role_guard_denies_participant(client: TestClient) -> None:
             data={"username": "role@example.com", "password": "a-very-long-test-password"},
         )
         token = token_response.json()["access_token"]
-        response = client.get(
-            "/_test/admin-only", headers={"Authorization": f"Bearer {token}"}
-        )
+        response = client.get("/_test/admin-only", headers={"Authorization": f"Bearer {token}"})
         assert response.status_code == 403
     finally:
         app.router.routes[:] = [
