@@ -5,7 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.api.dependencies import get_current_user, require_roles
+from app.api.dependencies import require_roles
 from app.db.session import get_db
 from app.models.organization import Organization
 from app.models.user import User
@@ -17,11 +17,12 @@ router = APIRouter(prefix="/organizations", tags=["organizations"])
 @router.get("", response_model=list[OrganizationPublic])
 def list_organizations(db: Session = Depends(get_db)) -> list[Organization]:
     """List active organizations."""
-    return list(
-        db.scalars(
-            select(Organization).where(Organization.is_active.is_(True)).order_by(Organization.name)
-        ).all()
+    query = (
+        select(Organization)
+        .where(Organization.is_active.is_(True))
+        .order_by(Organization.name)
     )
+    return list(db.scalars(query).all())
 
 
 @router.post(
@@ -45,7 +46,10 @@ def create_organization(
         db.commit()
     except IntegrityError:
         db.rollback()
-        raise HTTPException(status_code=409, detail="Organization slug already exists") from None
+        raise HTTPException(
+            status_code=409,
+            detail="Organization slug already exists",
+        ) from None
     db.refresh(organization)
     return organization
 
