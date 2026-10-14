@@ -36,7 +36,8 @@ class Settings(BaseSettings):
     @model_validator(mode="after")
     def validate_production_secret(self) -> "Settings":
         is_production = self.app_env.lower() in {"production", "prod"}
-        if is_production and self.auth_secret_key == _DEVELOPMENT_SECRET:
+        uses_development_secret = self.auth_secret_key == _DEVELOPMENT_SECRET
+        if is_production and uses_development_secret:
             raise ValueError("Set a unique AUTH_SECRET_KEY before running in production")
         return self
 
