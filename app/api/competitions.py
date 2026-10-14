@@ -112,7 +112,10 @@ def update_competition_status(
     if payload.status not in ALLOWED_TRANSITIONS[competition.status]:
         raise HTTPException(
             status_code=409,
-            detail=f"Invalid competition status transition: {competition.status} -> {payload.status}",
+            detail=(
+                f"Invalid competition status transition: "
+                f"{competition.status} -> {payload.status}"
+            ),
         )
     competition.status = payload.status
     db.commit()
