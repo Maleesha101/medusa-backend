@@ -1,0 +1,57 @@
+@baseUrl = http://localhost:8000/api/v1
+@email = medusa.test@example.com
+@password = Replace-With-A-Long-Local-Test-Password
+
+### Liveness
+GET {{baseUrl}}/live
+
+### Readiness (database required)
+GET {{baseUrl}}/ready
+
+### Register participant
+# Expected: 201 Created
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+
+{
+  "email": "{{email}}",
+  "password": "{{password}}"
+}
+
+### Login (OAuth2 form data; username is the email)
+# @name login
+POST {{baseUrl}}/auth/token
+Content-Type: application/x-www-form-urlencoded
+
+username={{email}}&password={{password}}
+
+### Current user (uses token captured from login response)
+GET {{baseUrl}}/auth/me
+Authorization: Bearer {{login.response.body.access_token}}
+
+### Current user without token (expected 401)
+GET {{baseUrl}}/auth/me
+
+### Invalid password (expected 401)
+POST {{baseUrl}}/auth/token
+Content-Type: application/x-www-form-urlencoded
+
+username={{email}}&password=wrong-password
+
+### Invalid registration: password too short (expected 422)
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+
+{
+  "email": "short-password@example.com",
+  "password": "short"
+}
+
+### Duplicate registration (run after successful registration; expected 409)
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+
+{
+  "email": "{{email}}",
+  "password": "{{password}}"
+}
