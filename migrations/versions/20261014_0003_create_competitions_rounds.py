@@ -74,7 +74,9 @@ def upgrade() -> None:
         sa.UniqueConstraint("competition_id", "position", name="uq_rounds_competition_position"),
         sa.UniqueConstraint("competition_id", "slug", name="uq_rounds_competition_slug"),
     )
-    op.create_index("ix_competition_rounds_competition_id", "competition_rounds", ["competition_id"])
+    op.create_index(
+        "ix_competition_rounds_competition_id", "competition_rounds", ["competition_id"]
+    )
 
 
 def downgrade() -> None:
