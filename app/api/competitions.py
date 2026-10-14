@@ -5,7 +5,6 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.api.dependencies import get_current_user
 from app.api.dependencies import require_roles
 from app.db.session import get_db
 from app.models.competition import Competition
@@ -93,13 +92,10 @@ def create_competition(
 def get_competition(
     competition_id: int,
     db: Session = Depends(get_db),
-    user: User | None = Depends(get_current_user),
 ) -> Competition:
     """Get public competitions or a private competition by an authorized account."""
     competition = _competition_or_404(db, competition_id)
-    if not competition.is_public and (
-        user is None or user.role not in {"organizer", "admin"}
-    ):
+    if not competition.is_public:
         raise HTTPException(status_code=404, detail="Competition not found")
     return competition
 
