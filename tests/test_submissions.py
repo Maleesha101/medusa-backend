@@ -70,9 +70,7 @@ def _create_round(client, token: str, organization_id: int) -> tuple[int, int]:
 
 def _prepare_active_challenge(client, session_factory):
     organizer_email = "submission-organizer@example.com"
-    organizer_token, organization_id = _prepare_organizer(
-        client, session_factory, organizer_email
-    )
+    organizer_token, organization_id = _prepare_organizer(client, session_factory, organizer_email)
     headers = {"Authorization": f"Bearer {organizer_token}"}
     competition_id, round_id = _create_round(client, organizer_token, organization_id)
 
@@ -163,9 +161,7 @@ def test_flag_lifecycle_and_submission_replay_protection(client, session_factory
         assert stored.flag_hash != correct_flag
         attempts = list(
             db.scalars(
-                select(ChallengeSubmission).where(
-                    ChallengeSubmission.challenge_id == challenge_id
-                )
+                select(ChallengeSubmission).where(ChallengeSubmission.challenge_id == challenge_id)
             ).all()
         )
         assert len(attempts) == 2
