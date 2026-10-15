@@ -215,3 +215,84 @@ Content-Type: application/json
   "slug": "late-round",
   "position": 2
 }
+
+
+### 24. Create a separate challenge test competition
+# @name createChallengeCompetition
+POST {{baseUrl}}/competitions
+Authorization: Bearer {{organizerLogin.response.body.access_token}}
+Content-Type: application/json
+
+{
+  "organization_id": {{organizationId}},
+  "name": "MEDUSA Challenge Catalog Test",
+  "slug": "medusa-challenge-catalog-test",
+  "is_public": true
+}
+
+### 25. Publish the challenge test competition
+PATCH {{baseUrl}}/competitions/{{createChallengeCompetition.response.body.id}}/status
+Authorization: Bearer {{organizerLogin.response.body.access_token}}
+Content-Type: application/json
+
+{
+  "status": "published"
+}
+
+### 26. Create a round for challenge testing
+# @name createChallengeRound
+POST {{baseUrl}}/competitions/{{createChallengeCompetition.response.body.id}}/rounds
+Authorization: Bearer {{organizerLogin.response.body.access_token}}
+Content-Type: application/json
+
+{
+  "name": "Challenge Catalog",
+  "slug": "challenge-catalog",
+  "position": 1
+}
+
+### 27. Create a draft challenge (organizer/admin only)
+# @name createChallenge
+POST {{baseUrl}}/rounds/{{createChallengeRound.response.body.id}}/challenges
+Authorization: Bearer {{organizerLogin.response.body.access_token}}
+Content-Type: application/json
+
+{
+  "name": "Lost Packet",
+  "slug": "lost-packet",
+  "description": "Inspect the supplied packet capture and identify the beacon.",
+  "category": "Forensics",
+  "points": 150,
+  "difficulty": "medium"
+}
+
+### 28. Draft challenge is hidden from public detail (expected 404)
+GET {{baseUrl}}/challenges/{{createChallenge.response.body.id}}
+
+### 29. Publish the challenge
+PATCH {{baseUrl}}/challenges/{{createChallenge.response.body.id}}/status
+Authorization: Bearer {{organizerLogin.response.body.access_token}}
+Content-Type: application/json
+
+{
+  "status": "published"
+}
+
+### 30. Read published challenge
+GET {{baseUrl}}/challenges/{{createChallenge.response.body.id}}
+
+### 31. List published challenges for the round
+GET {{baseUrl}}/rounds/{{createChallengeRound.response.body.id}}/challenges
+
+### 32. Invalid challenge points (expected 422)
+POST {{baseUrl}}/rounds/{{createChallengeRound.response.body.id}}/challenges
+Authorization: Bearer {{organizerLogin.response.body.access_token}}
+Content-Type: application/json
+
+{
+  "name": "Invalid Points",
+  "slug": "invalid-points",
+  "description": "This should fail validation.",
+  "category": "Web",
+  "points": 0
+}
