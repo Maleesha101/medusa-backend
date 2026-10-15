@@ -8,6 +8,7 @@ All public HTTP endpoints live under /api/v1. Breaking changes require a version
 - Use JSON for API responses unless the endpoint intentionally serves a file or stream.
 - Never expose stack traces or internal implementation details to public clients.
 - User responses must never include password hashes or signing secrets.
+- Challenge catalog responses must never include flags, flag hashes, or private grading data.
 
 ## Identity endpoints
 
@@ -45,9 +46,19 @@ Organization slugs must use lowercase letters, digits, and single hyphens. Dupli
 | GET | /api/v1/competitions/{competition_id}/rounds | List ordered rounds for a public competition | Public; private competitions return 404 |
 | POST | /api/v1/competitions/{competition_id}/rounds | Create a round | Organizer or admin |
 
-Competition slugs are globally unique. A competition starts in draft. Allowed transitions are draft to published, published to active or archived, active to completed, and completed to archived. Invalid transitions return HTTP 409. Round positions and slugs must be unique within a competition, and positions start at 1. Finished competitions cannot receive new rounds. Schedule start values must be earlier than corresponding end values.
+Competition slugs are globally unique. A competition starts in draft. Allowed transitions are draft to published, published to active, active to completed, and completed to archived. Invalid transitions return HTTP 409. Round positions and slugs must be unique within a competition, and positions start at 1. Finished competitions cannot receive new rounds. Schedule start values must be earlier than corresponding end values.
 
-Challenge CRUD, submissions, flag validation, scoring, and scoreboards are not implemented by these endpoints.
+## Challenge authoring and catalog endpoints
+
+| Method | Path | Purpose | Access |
+| --- | --- | --- | --- |
+| POST | /api/v1/rounds/{round_id}/challenges | Create a draft challenge | Organizer or admin |
+| GET | /api/v1/rounds/{round_id}/challenges | List published challenges | Public; parent competition must be public and published, active, or completed |
+| GET | /api/v1/challenges/{challenge_id} | Get a published challenge | Public; drafts and archived challenges return 404 |
+| PATCH | /api/v1/challenges/{challenge_id} | Update challenge metadata | Organizer or admin |
+| PATCH | /api/v1/challenges/{challenge_id}/status | Publish or archive a challenge | Organizer or admin |
+
+Challenge slugs are unique within a round. Points must be between 1 and 10,000. Difficulty is one of easy, medium, hard, or expert. New challenges always start as drafts; clients cannot set status during creation or metadata updates. Allowed status transitions are draft to published and published to archived. Archived challenges cannot be edited. Finished competitions cannot receive new challenges. Public responses contain challenge metadata only; submissions, flag validation, scoring, and scoreboards are not implemented in this increment.
 
 ## Registration and authorization
 
