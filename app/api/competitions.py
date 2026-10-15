@@ -23,7 +23,7 @@ router = APIRouter(prefix="/competitions", tags=["competitions"])
 
 ALLOWED_TRANSITIONS = {
     "draft": {"published"},
-    "published": {"active", "archived"},
+    "published": {"active"},
     "active": {"completed"},
     "completed": {"archived"},
     "archived": set(),
