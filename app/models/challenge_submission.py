@@ -43,6 +43,7 @@ class ChallengeSubmission(Base):
         ForeignKey("users.id", ondelete="RESTRICT"), nullable=False, index=True
     )
     is_correct: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    points_awarded: Mapped[int] = mapped_column(nullable=False, default=0, server_default="0")
     submitted_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
