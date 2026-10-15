@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 
 from app.api.auth import router as auth_router
+from app.api.challenges import router as challenges_router
 from app.api.competitions import router as competitions_router
 from app.api.health import router as health_router
 from app.api.organizations import router as organizations_router
@@ -12,7 +13,7 @@ def create_app() -> FastAPI:
     settings = get_settings()
     application = FastAPI(
         title=settings.app_name,
-        version="0.4.0",
+        version="0.5.0",
         description="MEDUSA CTF and competition management API",
     )
     application.include_router(health_router, prefix=settings.api_v1_prefix)
@@ -20,6 +21,7 @@ def create_app() -> FastAPI:
     application.include_router(organizations_router, prefix=settings.api_v1_prefix)
     application.include_router(teams_router, prefix=settings.api_v1_prefix)
     application.include_router(competitions_router, prefix=settings.api_v1_prefix)
+    application.include_router(challenges_router, prefix=settings.api_v1_prefix)
     return application
 
 
