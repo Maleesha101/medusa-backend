@@ -4,7 +4,7 @@ The backend platform for **MEDUSA** — a modular, security-first CTF and compet
 
 ## Project status
 
-The repository contains the application foundation, identity/authentication, and initial organization/team membership APIs. It is not yet production-ready. Competition rounds, challenges, submissions, scoring, persistent audit events, and sandbox APIs remain future work.
+The repository contains the application foundation, identity/authentication, organization/team membership APIs, and initial competition/round management. It is not yet production-ready. Challenge authoring, submissions, flag validation, scoring, persistent audit events, and sandbox APIs remain future work.
 
 ## Architecture direction
 
@@ -26,8 +26,12 @@ MEDUSA uses a **modular monolith** initially. Domain boundaries are explicit, bu
 - GET/POST /api/v1/organizations/{organization_id}/teams — list and create teams
 - GET /api/v1/teams/{team_id} — team details and members
 - POST /api/v1/teams/{team_id}/join and DELETE /api/v1/teams/{team_id}/leave — membership operations
+- GET/POST /api/v1/competitions — list public competitions and create a draft competition
+- GET /api/v1/competitions/{competition_id} — retrieve a public competition
+- PATCH /api/v1/competitions/{competition_id}/status — advance competition lifecycle
+- GET/POST /api/v1/competitions/{competition_id}/rounds — list and create ordered rounds
 
-Organization creation requires an organizer or admin role. Public registration always creates a participant; assign organizer/admin roles through a controlled administrative process. Team creators become captains. See docs/api-contract.md and docs/security-baseline.md for access rules and limitations.
+Organization and competition creation and lifecycle changes require an organizer or admin role. Public registration always creates a participant; assign organizer/admin roles through a controlled administrative process. Team creators become captains. Competition status transitions are server-validated. See docs/api-contract.md and docs/security-baseline.md for access rules and limitations.
 
 ## Local development
 
@@ -66,10 +70,11 @@ ruff format --check .
 1. **Foundation:** repository conventions, configuration, health endpoints, local dependencies, CI, and architecture documentation.
 2. **Identity foundation:** users, password hashing, access tokens, role checks, and schema migrations.
 3. **Organization/team foundation:** organizations, teams, membership, and access control.
-4. **CTF engine:** competitions, rounds, challenges, submissions, flag validation, scoring, and scoreboard.
-5. **Infrastructure integration:** ephemeral challenge instances, sandbox controller, resource limits, and isolation.
-6. **Realtime and SOC:** WebSocket events, alerts, operational visibility, and integrations.
-7. **Hardening and scale:** threat modeling, rate limits, load testing, observability, backups, and deployment security.
+4. **Competition/round foundation:** competition metadata, lifecycle transitions, schedules, and ordered rounds.
+5. **CTF engine:** challenges, submissions, flag validation, scoring, and scoreboard.
+6. **Infrastructure integration:** ephemeral challenge instances, sandbox controller, resource limits, and isolation.
+7. **Realtime and SOC:** WebSocket events, alerts, operational visibility, and integrations.
+8. **Hardening and scale:** threat modeling, rate limits, load testing, observability, backups, and deployment security.
 
 ## Security principles
 

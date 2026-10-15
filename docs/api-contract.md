@@ -34,12 +34,29 @@ All public HTTP endpoints live under /api/v1. Breaking changes require a version
 
 Organization slugs must use lowercase letters, digits, and single hyphens. Duplicate slugs return HTTP 409. Team names are unique within an organization; duplicate names return HTTP 409. Joining an inactive or missing organization is not allowed. Duplicate membership returns HTTP 409. A team captain must transfer captaincy before leaving; captaincy transfer is not implemented in this phase.
 
+## Competition and round endpoints
+
+| Method | Path | Purpose | Access |
+| --- | --- | --- | --- |
+| GET | /api/v1/competitions | List public published, active, or completed competitions | Public |
+| POST | /api/v1/competitions | Create a draft competition | Organizer or admin |
+| GET | /api/v1/competitions/{competition_id} | Get a public competition | Public; private competitions return 404 |
+| PATCH | /api/v1/competitions/{competition_id}/status | Advance competition lifecycle | Organizer or admin |
+| GET | /api/v1/competitions/{competition_id}/rounds | List ordered rounds for a public competition | Public; private competitions return 404 |
+| POST | /api/v1/competitions/{competition_id}/rounds | Create a round | Organizer or admin |
+
+Competition slugs are globally unique. A competition starts in draft. Allowed transitions are draft to published, published to active or archived, active to completed, and completed to archived. Invalid transitions return HTTP 409. Round positions and slugs must be unique within a competition, and positions start at 1. Finished competitions cannot receive new rounds. Schedule start values must be earlier than corresponding end values.
+
+Challenge CRUD, submissions, flag validation, scoring, and scoreboards are not implemented by these endpoints.
+
 ## Registration and authorization
+
 Registration requires a valid email and a password of 12–128 characters. Duplicate email addresses return HTTP 409. Token requests use OAuth2 form fields: the field named username must contain the email address and password contains the account password. Invalid credentials return a generic HTTP 401 response.
 
 Access tokens identify the user; current role and active status are loaded from the database on each authenticated request. Role claims supplied by clients are not trusted. Public registration cannot set role or active status. Use require_roles(...) for protected routes and test both allowed and denied access.
 
 ## Token policy
+
 Tokens are signed using HS256, include issuer, subject, issued-at, and expiration claims, and expire after 15 minutes by default (configurable from 1–60 minutes). Set a unique AUTH_SECRET_KEY of at least 32 characters in each deployment. The development placeholder must never be used in production. Refresh-token rotation, revocation, MFA, password reset, and email verification are not implemented in this phase.
 
 ## Readiness semantics

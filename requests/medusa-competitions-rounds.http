@@ -1,0 +1,217 @@
+### MEDUSA API — Competitions & Rounds
+### VS Code: install the REST Client extension to send these requests.
+### Start the API and apply migrations:
+###   docker compose up --build -d
+###   docker compose exec api alembic upgrade head
+###
+### Configure the local development credentials and organization ID below.
+### Public registration creates a participant, not an organizer. Use an existing
+### organizer/admin account (or promote a local test account in your dev database).
+### The organization must exist and be active. Never use production credentials here.
+
+@baseUrl = http://localhost:8000/api/v1
+@organizerEmail = organizer@example.com
+@password = Replace-With-A-Long-Local-Test-Password
+@organizationId = 1
+@competitionName = MEDUSA REST Client Test
+@competitionSlug = medusa-rest-client-test
+@roundName = Web Recon
+@roundSlug = web-recon
+
+### 1. Liveness probe
+GET {{baseUrl}}/live
+
+### 2. Database readiness probe
+GET {{baseUrl}}/ready
+
+### 3. Login as an existing organizer/admin
+# @name organizerLogin
+POST {{baseUrl}}/auth/token
+Content-Type: application/x-www-form-urlencoded
+
+username={{organizerEmail}}&password={{password}}
+
+### 4. List publicly visible competitions
+GET {{baseUrl}}/competitions
+
+### 5. Create a draft competition (organizer/admin only)
+# @name createCompetition
+POST {{baseUrl}}/competitions
+Authorization: Bearer {{organizerLogin.response.body.access_token}}
+Content-Type: application/json
+
+{
+  "organization_id": {{organizationId}},
+  "name": "{{competitionName}}",
+  "slug": "{{competitionSlug}}",
+  "description": "Local REST Client test competition",
+  "is_public": true,
+  "registration_opens_at": "2026-10-20T08:00:00Z",
+  "registration_closes_at": "2026-10-25T08:00:00Z",
+  "starts_at": "2026-10-26T08:00:00Z",
+  "ends_at": "2026-10-27T08:00:00Z"
+}
+
+### 6. Get the created competition
+### Draft competitions are not publicly visible; expected 404.
+GET {{baseUrl}}/competitions/{{createCompetition.response.body.id}}
+
+### 7. Confirm draft is omitted from the public list
+GET {{baseUrl}}/competitions
+
+### 8. Publish the competition
+# @name publishCompetition
+PATCH {{baseUrl}}/competitions/{{createCompetition.response.body.id}}/status
+Authorization: Bearer {{organizerLogin.response.body.access_token}}
+Content-Type: application/json
+
+{
+  "status": "published"
+}
+
+### 9. Get the now-public competition
+GET {{baseUrl}}/competitions/{{createCompetition.response.body.id}}
+
+### 10. Create the first round
+# @name createRound
+POST {{baseUrl}}/competitions/{{createCompetition.response.body.id}}/rounds
+Authorization: Bearer {{organizerLogin.response.body.access_token}}
+Content-Type: application/json
+
+{
+  "name": "{{roundName}}",
+  "slug": "{{roundSlug}}",
+  "position": 1,
+  "starts_at": "2026-10-26T08:00:00Z",
+  "ends_at": "2026-10-26T12:00:00Z"
+}
+
+### 11. List rounds in position order
+GET {{baseUrl}}/competitions/{{createCompetition.response.body.id}}/rounds
+
+### 12. Duplicate round position (expected 409 Conflict)
+POST {{baseUrl}}/competitions/{{createCompetition.response.body.id}}/rounds
+Authorization: Bearer {{organizerLogin.response.body.access_token}}
+Content-Type: application/json
+
+{
+  "name": "Forensics",
+  "slug": "forensics",
+  "position": 1
+}
+
+### 13. Duplicate round slug in this competition (expected 409 Conflict)
+POST {{baseUrl}}/competitions/{{createCompetition.response.body.id}}/rounds
+Authorization: Bearer {{organizerLogin.response.body.access_token}}
+Content-Type: application/json
+
+{
+  "name": "Web Recon Alternate",
+  "slug": "{{roundSlug}}",
+  "position": 2
+}
+
+### 14. Invalid round schedule (expected 422 Unprocessable Entity)
+POST {{baseUrl}}/competitions/{{createCompetition.response.body.id}}/rounds
+Authorization: Bearer {{organizerLogin.response.body.access_token}}
+Content-Type: application/json
+
+{
+  "name": "Invalid Schedule",
+  "slug": "invalid-schedule",
+  "position": 3,
+  "starts_at": "2026-10-27T12:00:00Z",
+  "ends_at": "2026-10-27T08:00:00Z"
+}
+
+### 15. Invalid competition schedule on create (expected 422)
+### Uses a different slug so it doesn't conflict with request 5.
+POST {{baseUrl}}/competitions
+Authorization: Bearer {{organizerLogin.response.body.access_token}}
+Content-Type: application/json
+
+{
+  "organization_id": {{organizationId}},
+  "name": "Invalid Schedule Test",
+  "slug": "invalid-schedule-test",
+  "registration_opens_at": "2026-10-25T08:00:00Z",
+  "registration_closes_at": "2026-10-20T08:00:00Z"
+}
+
+### 16. Duplicate competition slug (expected 409 Conflict)
+POST {{baseUrl}}/competitions
+Authorization: Bearer {{organizerLogin.response.body.access_token}}
+Content-Type: application/json
+
+{
+  "organization_id": {{organizationId}},
+  "name": "Duplicate Slug Test",
+  "slug": "{{competitionSlug}}"
+}
+
+### 17. Invalid lifecycle transition: published -> archived (expected 409)
+### Run after request 8 and before request 18.
+PATCH {{baseUrl}}/competitions/{{createCompetition.response.body.id}}/status
+Authorization: Bearer {{organizerLogin.response.body.access_token}}
+Content-Type: application/json
+
+{
+  "status": "archived"
+}
+
+### 18. Advance lifecycle: published -> active
+PATCH {{baseUrl}}/competitions/{{createCompetition.response.body.id}}/status
+Authorization: Bearer {{organizerLogin.response.body.access_token}}
+Content-Type: application/json
+
+{
+  "status": "active"
+}
+
+### 19. Advance lifecycle: active -> completed
+PATCH {{baseUrl}}/competitions/{{createCompetition.response.body.id}}/status
+Authorization: Bearer {{organizerLogin.response.body.access_token}}
+Content-Type: application/json
+
+{
+  "status": "completed"
+}
+
+### 20. Advance lifecycle: completed -> archived
+PATCH {{baseUrl}}/competitions/{{createCompetition.response.body.id}}/status
+Authorization: Bearer {{organizerLogin.response.body.access_token}}
+Content-Type: application/json
+
+{
+  "status": "archived"
+}
+
+### 21. Invalid transition from archived (expected 409)
+PATCH {{baseUrl}}/competitions/{{createCompetition.response.body.id}}/status
+Authorization: Bearer {{organizerLogin.response.body.access_token}}
+Content-Type: application/json
+
+{
+  "status": "published"
+}
+
+### 22. Create competition without authentication (expected 401)
+POST {{baseUrl}}/competitions
+Content-Type: application/json
+
+{
+  "organization_id": {{organizationId}},
+  "name": "Unauthorized Test",
+  "slug": "unauthorized-test"
+}
+
+### 23. Try adding a round to an archived competition (expected 409)
+POST {{baseUrl}}/competitions/{{createCompetition.response.body.id}}/rounds
+Authorization: Bearer {{organizerLogin.response.body.access_token}}
+Content-Type: application/json
+
+{
+  "name": "Late Round",
+  "slug": "late-round",
+  "position": 2
+}
