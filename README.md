@@ -4,7 +4,7 @@ The backend platform for **MEDUSA** — a modular, security-first CTF and compet
 
 ## Project status
 
-The repository contains the application foundation, identity/authentication, organization/team membership APIs, and initial competition/round management. It is not yet production-ready. Challenge authoring, submissions, flag validation, scoring, persistent audit events, and sandbox APIs remain future work.
+The repository contains the application foundation, identity/authentication, organization/team membership APIs, competition/round management, and initial challenge authoring/catalog endpoints. It is not yet production-ready. Submissions, flag validation, scoring, persistent audit events, and sandbox APIs remain future work.
 
 ## Architecture direction
 
@@ -30,8 +30,13 @@ MEDUSA uses a **modular monolith** initially. Domain boundaries are explicit, bu
 - GET /api/v1/competitions/{competition_id} — retrieve a public competition
 - PATCH /api/v1/competitions/{competition_id}/status — advance competition lifecycle
 - GET/POST /api/v1/competitions/{competition_id}/rounds — list and create ordered rounds
+- POST /api/v1/rounds/{round_id}/challenges — create a draft challenge
+- GET /api/v1/rounds/{round_id}/challenges — list published challenges in a public competition
+- GET /api/v1/challenges/{challenge_id} — retrieve a published challenge
+- PATCH /api/v1/challenges/{challenge_id} — update challenge metadata
+- PATCH /api/v1/challenges/{challenge_id}/status — publish or archive a challenge
 
-Organization and competition creation and lifecycle changes require an organizer or admin role. Public registration always creates a participant; assign organizer/admin roles through a controlled administrative process. Team creators become captains. Competition status transitions are server-validated. See docs/api-contract.md and docs/security-baseline.md for access rules and limitations.
+Organization and competition creation and lifecycle changes require an organizer or admin role. Public registration always creates a participant; assign organizer/admin roles through a controlled administrative process. Team creators become captains. Competition and challenge status transitions are server-validated. Challenge public responses contain metadata only; challenge submissions, flag checking, scoring, and scoreboards are not implemented yet. See docs/api-contract.md and docs/security-baseline.md for access rules and limitations.
 
 ## Local development
 
@@ -71,7 +76,7 @@ ruff format --check .
 2. **Identity foundation:** users, password hashing, access tokens, role checks, and schema migrations.
 3. **Organization/team foundation:** organizations, teams, membership, and access control.
 4. **Competition/round foundation:** competition metadata, lifecycle transitions, schedules, and ordered rounds.
-5. **CTF engine:** challenges, submissions, flag validation, scoring, and scoreboard.
+5. **CTF engine:** challenge authoring/catalog is in progress; submissions, flag validation, scoring, and scoreboard remain future work.
 6. **Infrastructure integration:** ephemeral challenge instances, sandbox controller, resource limits, and isolation.
 7. **Realtime and SOC:** WebSocket events, alerts, operational visibility, and integrations.
 8. **Hardening and scale:** threat modeling, rate limits, load testing, observability, backups, and deployment security.
