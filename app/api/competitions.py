@@ -83,9 +83,7 @@ def create_competition(
         db.commit()
     except IntegrityError:
         db.rollback()
-        raise HTTPException(
-            status_code=409, detail="Competition slug already exists"
-        ) from None
+        raise HTTPException(status_code=409, detail="Competition slug already exists") from None
     db.refresh(competition)
     return competition
 
@@ -119,8 +117,7 @@ def update_competition_status(
         raise HTTPException(
             status_code=409,
             detail=(
-                f"Invalid competition status transition: "
-                f"{competition.status} -> {payload.status}"
+                f"Invalid competition status transition: {competition.status} -> {payload.status}"
             ),
         )
     competition.status = payload.status
