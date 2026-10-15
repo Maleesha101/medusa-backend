@@ -59,9 +59,7 @@ def get_competition_scoreboard(
         )
         .group_by(Team.id, Team.name)
         .order_by(
-            func.sum(
-                case((correct, ChallengeSubmission.points_awarded), else_=0)
-            ).desc(),
+            func.sum(case((correct, ChallengeSubmission.points_awarded), else_=0)).desc(),
             func.max(case((correct, ChallengeSubmission.submitted_at), else_=None)).asc(),
             Team.name.asc(),
             Team.id.asc(),
