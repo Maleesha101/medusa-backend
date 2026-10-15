@@ -5,10 +5,11 @@ All public HTTP endpoints live under /api/v1. Breaking changes require a version
 
 ## Response conventions
 - Use appropriate HTTP status codes.
-- Use JSON for API responses unless the endpoint intentionally serves a file or stream.
+- Use JSON for responses unless the endpoint intentionally serves a file, stream, or empty response.
 - Never expose stack traces or internal implementation details to public clients.
 - User responses must never include password hashes or signing secrets.
 - Challenge catalog responses must never include flags, flag hashes, or private grading data.
+- Submission responses never echo the submitted flag.
 
 ## Identity endpoints
 
@@ -57,12 +58,25 @@ Competition slugs are globally unique. A competition starts in draft. Allowed tr
 | GET | /api/v1/challenges/{challenge_id} | Get a published challenge | Public; drafts and archived challenges return 404 |
 | PATCH | /api/v1/challenges/{challenge_id} | Update challenge metadata | Organizer or admin |
 | PATCH | /api/v1/challenges/{challenge_id}/status | Publish or archive a challenge | Organizer or admin |
+| PUT | /api/v1/challenges/{challenge_id}/flag | Set or replace the flag for a draft challenge | Organizer or admin |
+| POST | /api/v1/challenges/{challenge_id}/submissions | Submit a flag for a team | Authenticated team member |
 
-Challenge slugs are unique within a round. Points must be between 1 and 10,000. Difficulty is one of easy, medium, hard, or expert. New challenges always start as drafts; clients cannot set status during creation or metadata updates. Allowed status transitions are draft to published and published to archived. Archived challenges cannot be edited. Finished competitions cannot receive new challenges. Public responses contain challenge metadata only; submissions, flag validation, scoring, and scoreboards are not implemented in this increment.
+Challenge slugs are unique within a round. Points must be between 1 and 10,000. Difficulty is one of easy, medium, hard, or expert. New challenges always start as drafts; clients cannot set status during creation or metadata updates. Allowed status transitions are draft to published and published to archived. A challenge must have a configured flag before it can be published. Archived challenges cannot be edited. Finished competitions cannot receive new challenges. Public responses contain challenge metadata only.
+
+## Challenge flags and submissions
+
+- Flags must be configured before publishing and may be changed only while the challenge remains a draft.
+- The API stores a keyed HMAC-SHA-256 digest of each flag, not plaintext. The configured AUTH_SECRET_KEY is used as the HMAC key; rotating it requires setting flags again for all challenges.
+- Flag comparison uses constant-time digest comparison.
+- A submission requires an active competition, a published challenge, an existing team from the same organization as the competition, and membership of the authenticated user in that team.
+- Each attempt records challenge ID, team ID, user ID, correctness, and timestamp. Submitted flag values are never persisted or returned.
+- Incorrect attempts return HTTP 200 with correct=false; correct attempts return HTTP 200 with correct=true.
+- A repeated solve by the same team returns HTTP 409. A partial unique database index protects the one-correct-solve invariant under concurrent submissions.
+- This increment does not calculate points, update a scoreboard, or implement a distributed rate limiter. Those must be added before a public competition launch.
 
 ## Registration and authorization
 
-Registration requires a valid email and a password of 12–128 characters. Duplicate email addresses return HTTP 409. Token requests use OAuth2 form fields: the field named username must contain the email address and password contains the account password. Invalid credentials return a generic HTTP 401 response.
+Registration requires a valid email and a password of 12–128 characters. Duplicate email addresses return HTTP 409. Token requests use OAuth2 form fields: the field named username must contain the email address and password contains the password. Invalid credentials return a generic HTTP 401 response.
 
 Access tokens identify the user; current role and active status are loaded from the database on each authenticated request. Role claims supplied by clients are not trusted. Public registration cannot set role or active status. Use require_roles(...) for protected routes and test both allowed and denied access.
 
