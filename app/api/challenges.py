@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from app.api.dependencies import require_roles
 from app.db.session import get_db
 from app.models.challenge import Challenge
+from app.models.challenge_flag import ChallengeFlag
 from app.models.competition import Competition
 from app.models.competition_round import CompetitionRound
 from app.models.user import User
@@ -168,6 +169,11 @@ def update_challenge_status(
         raise HTTPException(
             status_code=409,
             detail=f"Invalid challenge status transition: {challenge.status} -> {payload.status}",
+        )
+    if payload.status == "published" and db.get(ChallengeFlag, challenge_id) is None:
+        raise HTTPException(
+            status_code=409,
+            detail="Configure a challenge flag before publishing",
         )
     challenge.status = payload.status
     db.commit()
