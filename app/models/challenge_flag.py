@@ -9,7 +9,7 @@ from app.db.base import Base
 
 
 class ChallengeFlag(Base):
-    """Stores only a one-way digest of a challenge flag."""
+    """Stores only a keyed digest of a challenge flag."""
 
     __tablename__ = "challenge_flags"
 
