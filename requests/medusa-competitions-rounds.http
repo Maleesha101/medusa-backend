@@ -37,7 +37,7 @@ GET {{baseUrl}}/competitions
 ### 5. Create a draft competition (organizer/admin only)
 # @name createCompetition
 POST {{baseUrl}}/competitions
-Authorization: Bearer {{organizerLogin.response.body.access_token}}
+Authorization: Bearer {{organizerLogin.response.body.$.access_token}}
 Content-Type: application/json
 
 {
@@ -54,15 +54,15 @@ Content-Type: application/json
 
 ### 6. Get the created competition
 ### Draft competitions are not publicly visible; expected 404.
-GET {{baseUrl}}/competitions/{{createCompetition.response.body.id}}
+GET {{baseUrl}}/competitions/{{createCompetition.response.body.$.id}}
 
 ### 7. Confirm draft is omitted from the public list
 GET {{baseUrl}}/competitions
 
 ### 8. Publish the competition
 # @name publishCompetition
-PATCH {{baseUrl}}/competitions/{{createCompetition.response.body.id}}/status
-Authorization: Bearer {{organizerLogin.response.body.access_token}}
+PATCH {{baseUrl}}/competitions/{{createCompetition.response.body.$.id}}/status
+Authorization: Bearer {{organizerLogin.response.body.$.access_token}}
 Content-Type: application/json
 
 {
@@ -70,12 +70,12 @@ Content-Type: application/json
 }
 
 ### 9. Get the now-public competition
-GET {{baseUrl}}/competitions/{{createCompetition.response.body.id}}
+GET {{baseUrl}}/competitions/{{createCompetition.response.body.$.id}}
 
 ### 10. Create the first round
 # @name createRound
-POST {{baseUrl}}/competitions/{{createCompetition.response.body.id}}/rounds
-Authorization: Bearer {{organizerLogin.response.body.access_token}}
+POST {{baseUrl}}/competitions/{{createCompetition.response.body.$.id}}/rounds
+Authorization: Bearer {{organizerLogin.response.body.$.access_token}}
 Content-Type: application/json
 
 {
@@ -87,11 +87,11 @@ Content-Type: application/json
 }
 
 ### 11. List rounds in position order
-GET {{baseUrl}}/competitions/{{createCompetition.response.body.id}}/rounds
+GET {{baseUrl}}/competitions/{{createCompetition.response.body.$.id}}/rounds
 
 ### 12. Duplicate round position (expected 409 Conflict)
-POST {{baseUrl}}/competitions/{{createCompetition.response.body.id}}/rounds
-Authorization: Bearer {{organizerLogin.response.body.access_token}}
+POST {{baseUrl}}/competitions/{{createCompetition.response.body.$.id}}/rounds
+Authorization: Bearer {{organizerLogin.response.body.$.access_token}}
 Content-Type: application/json
 
 {
@@ -101,8 +101,8 @@ Content-Type: application/json
 }
 
 ### 13. Duplicate round slug in this competition (expected 409 Conflict)
-POST {{baseUrl}}/competitions/{{createCompetition.response.body.id}}/rounds
-Authorization: Bearer {{organizerLogin.response.body.access_token}}
+POST {{baseUrl}}/competitions/{{createCompetition.response.body.$.id}}/rounds
+Authorization: Bearer {{organizerLogin.response.body.$.access_token}}
 Content-Type: application/json
 
 {
@@ -112,8 +112,8 @@ Content-Type: application/json
 }
 
 ### 14. Invalid round schedule (expected 422 Unprocessable Entity)
-POST {{baseUrl}}/competitions/{{createCompetition.response.body.id}}/rounds
-Authorization: Bearer {{organizerLogin.response.body.access_token}}
+POST {{baseUrl}}/competitions/{{createCompetition.response.body.$.id}}/rounds
+Authorization: Bearer {{organizerLogin.response.body.$.access_token}}
 Content-Type: application/json
 
 {
@@ -127,7 +127,7 @@ Content-Type: application/json
 ### 15. Invalid competition schedule on create (expected 422)
 ### Uses a different slug so it doesn't conflict with request 5.
 POST {{baseUrl}}/competitions
-Authorization: Bearer {{organizerLogin.response.body.access_token}}
+Authorization: Bearer {{organizerLogin.response.body.$.access_token}}
 Content-Type: application/json
 
 {
@@ -140,7 +140,7 @@ Content-Type: application/json
 
 ### 16. Duplicate competition slug (expected 409 Conflict)
 POST {{baseUrl}}/competitions
-Authorization: Bearer {{organizerLogin.response.body.access_token}}
+Authorization: Bearer {{organizerLogin.response.body.$.access_token}}
 Content-Type: application/json
 
 {
@@ -151,8 +151,8 @@ Content-Type: application/json
 
 ### 17. Invalid lifecycle transition: published -> archived (expected 409)
 ### Run after request 8 and before request 18.
-PATCH {{baseUrl}}/competitions/{{createCompetition.response.body.id}}/status
-Authorization: Bearer {{organizerLogin.response.body.access_token}}
+PATCH {{baseUrl}}/competitions/{{createCompetition.response.body.$.id}}/status
+Authorization: Bearer {{organizerLogin.response.body.$.access_token}}
 Content-Type: application/json
 
 {
@@ -160,8 +160,8 @@ Content-Type: application/json
 }
 
 ### 18. Advance lifecycle: published -> active
-PATCH {{baseUrl}}/competitions/{{createCompetition.response.body.id}}/status
-Authorization: Bearer {{organizerLogin.response.body.access_token}}
+PATCH {{baseUrl}}/competitions/{{createCompetition.response.body.$.id}}/status
+Authorization: Bearer {{organizerLogin.response.body.$.access_token}}
 Content-Type: application/json
 
 {
@@ -169,8 +169,8 @@ Content-Type: application/json
 }
 
 ### 19. Advance lifecycle: active -> completed
-PATCH {{baseUrl}}/competitions/{{createCompetition.response.body.id}}/status
-Authorization: Bearer {{organizerLogin.response.body.access_token}}
+PATCH {{baseUrl}}/competitions/{{createCompetition.response.body.$.id}}/status
+Authorization: Bearer {{organizerLogin.response.body.$.access_token}}
 Content-Type: application/json
 
 {
@@ -178,8 +178,8 @@ Content-Type: application/json
 }
 
 ### 20. Advance lifecycle: completed -> archived
-PATCH {{baseUrl}}/competitions/{{createCompetition.response.body.id}}/status
-Authorization: Bearer {{organizerLogin.response.body.access_token}}
+PATCH {{baseUrl}}/competitions/{{createCompetition.response.body.$.id}}/status
+Authorization: Bearer {{organizerLogin.response.body.$.access_token}}
 Content-Type: application/json
 
 {
@@ -187,8 +187,8 @@ Content-Type: application/json
 }
 
 ### 21. Invalid transition from archived (expected 409)
-PATCH {{baseUrl}}/competitions/{{createCompetition.response.body.id}}/status
-Authorization: Bearer {{organizerLogin.response.body.access_token}}
+PATCH {{baseUrl}}/competitions/{{createCompetition.response.body.$.id}}/status
+Authorization: Bearer {{organizerLogin.response.body.$.access_token}}
 Content-Type: application/json
 
 {
@@ -206,8 +206,8 @@ Content-Type: application/json
 }
 
 ### 23. Try adding a round to an archived competition (expected 409)
-POST {{baseUrl}}/competitions/{{createCompetition.response.body.id}}/rounds
-Authorization: Bearer {{organizerLogin.response.body.access_token}}
+POST {{baseUrl}}/competitions/{{createCompetition.response.body.$.id}}/rounds
+Authorization: Bearer {{organizerLogin.response.body.$.access_token}}
 Content-Type: application/json
 
 {
@@ -220,7 +220,7 @@ Content-Type: application/json
 ### 24. Create a separate challenge test competition
 # @name createChallengeCompetition
 POST {{baseUrl}}/competitions
-Authorization: Bearer {{organizerLogin.response.body.access_token}}
+Authorization: Bearer {{organizerLogin.response.body.$.access_token}}
 Content-Type: application/json
 
 {
@@ -231,8 +231,8 @@ Content-Type: application/json
 }
 
 ### 25. Publish the challenge test competition
-PATCH {{baseUrl}}/competitions/{{createChallengeCompetition.response.body.id}}/status
-Authorization: Bearer {{organizerLogin.response.body.access_token}}
+PATCH {{baseUrl}}/competitions/6/status
+Authorization: Bearer {{organizerLogin.response.body.$.access_token}}
 Content-Type: application/json
 
 {
@@ -241,8 +241,8 @@ Content-Type: application/json
 
 ### 26. Create a round for challenge testing
 # @name createChallengeRound
-POST {{baseUrl}}/competitions/{{createChallengeCompetition.response.body.id}}/rounds
-Authorization: Bearer {{organizerLogin.response.body.access_token}}
+POST {{baseUrl}}/competitions/6/rounds
+Authorization: Bearer {{organizerLogin.response.body.$.access_token}}
 Content-Type: application/json
 
 {
@@ -253,8 +253,8 @@ Content-Type: application/json
 
 ### 27. Create a draft challenge (organizer/admin only)
 # @name createChallenge
-POST {{baseUrl}}/rounds/{{createChallengeRound.response.body.id}}/challenges
-Authorization: Bearer {{organizerLogin.response.body.access_token}}
+POST {{baseUrl}}/rounds/6/challenges
+Authorization: Bearer {{organizerLogin.response.body.$.access_token}}
 Content-Type: application/json
 
 {
@@ -267,11 +267,11 @@ Content-Type: application/json
 }
 
 ### 28. Draft challenge is hidden from public detail (expected 404)
-GET {{baseUrl}}/challenges/{{createChallenge.response.body.id}}
+GET {{baseUrl}}/challenges/6
 
 ### 29. Publish the challenge
-PATCH {{baseUrl}}/challenges/{{createChallenge.response.body.id}}/status
-Authorization: Bearer {{organizerLogin.response.body.access_token}}
+PATCH {{baseUrl}}/challenges/1/status
+Authorization: Bearer {{organizerLogin.response.body.$.access_token}}
 Content-Type: application/json
 
 {
@@ -279,14 +279,14 @@ Content-Type: application/json
 }
 
 ### 30. Read published challenge
-GET {{baseUrl}}/challenges/{{createChallenge.response.body.id}}
+GET {{baseUrl}}/challenges/1
 
 ### 31. List published challenges for the round
-GET {{baseUrl}}/rounds/{{createChallengeRound.response.body.id}}/challenges
+GET {{baseUrl}}/rounds/4/challenges
 
 ### 32. Invalid challenge points (expected 422)
-POST {{baseUrl}}/rounds/{{createChallengeRound.response.body.id}}/challenges
-Authorization: Bearer {{organizerLogin.response.body.access_token}}
+POST {{baseUrl}}/rounds/6/challenges
+Authorization: Bearer {{organizerLogin.response.body.$.access_token}}
 Content-Type: application/json
 
 {
