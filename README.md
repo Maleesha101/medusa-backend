@@ -4,7 +4,7 @@ The backend platform for **MEDUSA** — a modular, security-first CTF and compet
 
 ## Project status
 
-The repository contains the application foundation, identity/authentication, organization/team membership APIs, competition/round management, and initial challenge authoring/catalog endpoints. It is not yet production-ready. Submissions, flag validation, scoring, persistent audit events, and sandbox APIs remain future work.
+The repository contains the application foundation, identity/authentication, organization/team membership APIs, competition/round management, challenge authoring/catalog, and initial challenge submission and flag validation endpoints. It is not yet production-ready. Scoring, scoreboard, persistent audit events, sandbox APIs, distributed submission rate limiting, and production hardening remain future work.
 
 ## Architecture direction
 
@@ -35,8 +35,10 @@ MEDUSA uses a **modular monolith** initially. Domain boundaries are explicit, bu
 - GET /api/v1/challenges/{challenge_id} — retrieve a published challenge
 - PATCH /api/v1/challenges/{challenge_id} — update challenge metadata
 - PATCH /api/v1/challenges/{challenge_id}/status — publish or archive a challenge
+- PUT /api/v1/challenges/{challenge_id}/flag — configure a draft challenge's private flag (organizer/admin)
+- POST /api/v1/challenges/{challenge_id}/submissions — submit a flag for a team
 
-Organization and competition creation and lifecycle changes require an organizer or admin role. Public registration always creates a participant; assign organizer/admin roles through a controlled administrative process. Team creators become captains. Competition and challenge status transitions are server-validated. Challenge public responses contain metadata only; challenge submissions, flag checking, scoring, and scoreboards are not implemented yet. See docs/api-contract.md and docs/security-baseline.md for access rules and limitations.
+Organization and competition creation and lifecycle changes require an organizer or admin role. Public registration always creates a participant; assign organizer/admin roles through a controlled administrative process. Team creators become captains. Challenge flags are stored as keyed digests using the configured authentication secret; changing that secret requires reconfiguring challenge flags. Submission records store the user, team, challenge, correctness, and timestamp, but not the submitted flag. A team may solve each challenge only once. A team must belong to the competition's organization, and the submitting user must be a member of that team. Submissions are accepted only while the competition is active. See docs/api-contract.md and docs/security-baseline.md for access rules and limitations.
 
 ## Local development
 
@@ -54,6 +56,7 @@ Organization and competition creation and lifecycle changes require an organizer
    ```
 
 4. Open the interactive API documentation at http://localhost:8000/docs.
+5. Use requests/medusa-submissions.http for a local end-to-end flag submission walkthrough. Run its named requests in order and replace example credentials/IDs as needed.
 
 The Compose database password and signing key are development-only values. Replace both through deployment secrets before any non-local deployment. Do not commit .env or real credentials.
 
@@ -76,7 +79,7 @@ ruff format --check .
 2. **Identity foundation:** users, password hashing, access tokens, role checks, and schema migrations.
 3. **Organization/team foundation:** organizations, teams, membership, and access control.
 4. **Competition/round foundation:** competition metadata, lifecycle transitions, schedules, and ordered rounds.
-5. **CTF engine:** challenge authoring/catalog is in progress; submissions, flag validation, scoring, and scoreboard remain future work.
+5. **CTF engine:** challenge authoring/catalog and initial flag submission/validation are implemented; scoring, scoreboard, and audit event persistence remain future work.
 6. **Infrastructure integration:** ephemeral challenge instances, sandbox controller, resource limits, and isolation.
 7. **Realtime and SOC:** WebSocket events, alerts, operational visibility, and integrations.
 8. **Hardening and scale:** threat modeling, rate limits, load testing, observability, backups, and deployment security.
