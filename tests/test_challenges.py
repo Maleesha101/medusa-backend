@@ -97,6 +97,13 @@ def test_challenge_lifecycle_and_public_catalog(client: TestClient, session_fact
     assert hidden_list.status_code == 200
     assert hidden_list.json() == []
 
+    configured = client.put(
+        f"/api/v1/challenges/{challenge_id}/flag",
+        json={"flag": "MEDUSA{challenge_lifecycle_test_flag}"},
+        headers=headers,
+    )
+    assert configured.status_code == 204
+
     published = client.patch(
         f"/api/v1/challenges/{challenge_id}/status",
         json={"status": "published"},
@@ -108,6 +115,8 @@ def test_challenge_lifecycle_and_public_catalog(client: TestClient, session_fact
     public_detail = client.get(f"/api/v1/challenges/{challenge_id}")
     assert public_detail.status_code == 200
     assert public_detail.json()["slug"] == "lost-packet"
+    assert "flag" not in public_detail.json()
+    assert "flag_hash" not in public_detail.json()
     public_list = client.get(f"/api/v1/rounds/{round_id}/challenges")
     assert [item["id"] for item in public_list.json()] == [challenge_id]
 
