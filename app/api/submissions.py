@@ -126,6 +126,7 @@ def submit_challenge_flag(
         team_id=payload.team_id,
         user_id=user.id,
         is_correct=is_correct,
+        points_awarded=challenge.points if is_correct else 0,
     )
     db.add(attempt)
     try:
