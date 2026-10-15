@@ -2,7 +2,6 @@ from sqlalchemy import select
 
 from app.models.challenge_flag import ChallengeFlag
 from app.models.challenge_submission import ChallengeSubmission
-from app.models.competition_round import CompetitionRound
 from app.models.membership import Membership
 from app.models.organization import Organization
 from app.models.team import Team
