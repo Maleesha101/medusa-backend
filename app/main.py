@@ -5,8 +5,8 @@ from app.api.challenges import router as challenges_router
 from app.api.competitions import router as competitions_router
 from app.api.health import router as health_router
 from app.api.organizations import router as organizations_router
-from app.api.submissions import router as submissions_router
 from app.api.scoreboard import router as scoreboard_router
+from app.api.submissions import router as submissions_router
 from app.api.teams import router as teams_router
 from app.core.config import get_settings
 
