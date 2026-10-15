@@ -4,7 +4,7 @@ The backend platform for **MEDUSA** — a modular, security-first CTF and compet
 
 ## Project status
 
-The repository contains the application foundation, identity/authentication, organization/team membership APIs, competition/round management, challenge authoring/catalog, and initial challenge submission and flag validation endpoints. It is not yet production-ready. Scoring, scoreboard, persistent audit events, sandbox APIs, distributed submission rate limiting, and production hardening remain future work.
+The repository contains the application foundation, identity/authentication, organization/team membership APIs, competition/round management, challenge authoring/catalog, challenge submission and flag validation, and initial scoring and public scoreboard endpoints. It is not yet production-ready. Persistent audit events, sandbox APIs, distributed submission rate limiting, and production hardening remain future work.
 
 ## Architecture direction
 
@@ -79,7 +79,7 @@ ruff format --check .
 2. **Identity foundation:** users, password hashing, access tokens, role checks, and schema migrations.
 3. **Organization/team foundation:** organizations, teams, membership, and access control.
 4. **Competition/round foundation:** competition metadata, lifecycle transitions, schedules, and ordered rounds.
-5. **CTF engine:** challenge authoring/catalog and initial flag submission/validation are implemented; scoring, scoreboard, and audit event persistence remain future work.
+5. **CTF engine:** challenge authoring/catalog, flag submission/validation, immutable solve-time point awards, and public scoreboards are implemented; persistent audit event logging remains future work.
 6. **Infrastructure integration:** ephemeral challenge instances, sandbox controller, resource limits, and isolation.
 7. **Realtime and SOC:** WebSocket events, alerts, operational visibility, and integrations.
 8. **Hardening and scale:** threat modeling, rate limits, load testing, observability, backups, and deployment security.

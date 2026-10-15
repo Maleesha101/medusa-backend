@@ -59,7 +59,7 @@ Competition slugs are globally unique. A competition starts in draft. Allowed tr
 | PATCH | /api/v1/challenges/{challenge_id} | Update challenge metadata | Organizer or admin |
 | PATCH | /api/v1/challenges/{challenge_id}/status | Publish or archive a challenge | Organizer or admin |
 | PUT | /api/v1/challenges/{challenge_id}/flag | Set or replace the flag for a draft challenge | Organizer or admin |
-| POST | /api/v1/challenges/{challenge_id}/submissions | Submit a flag for a team | Authenticated team member |
+| POST | /api/v1/challenges/{challenge_id}/submissions | Submit a flag for a team | Authenticated team member |\n| GET | /api/v1/competitions/{competition_id}/scoreboard | Get public competition standings | Public; competition must be public and published, active, or completed |
 
 Challenge slugs are unique within a round. Points must be between 1 and 10,000. Difficulty is one of easy, medium, hard, or expert. New challenges always start as drafts; clients cannot set status during creation or metadata updates. Allowed status transitions are draft to published and published to archived. A challenge must have a configured flag before it can be published. Archived challenges cannot be edited. Finished competitions cannot receive new challenges. Public responses contain challenge metadata only.
 
@@ -72,7 +72,7 @@ Challenge slugs are unique within a round. Points must be between 1 and 10,000. 
 - Each attempt records challenge ID, team ID, user ID, correctness, and timestamp. Submitted flag values are never persisted or returned.
 - Incorrect attempts return HTTP 200 with correct=false; correct attempts return HTTP 200 with correct=true.
 - A repeated solve by the same team returns HTTP 409. A partial unique database index protects the one-correct-solve invariant under concurrent submissions.
-- This increment does not calculate points, update a scoreboard, or implement a distributed rate limiter. Those must be added before a public competition launch.
+- A correct solve snapshots the challenge point value into `points_awarded`; incorrect attempts award zero. Later edits to challenge metadata do not change points already awarded.\n- The public scoreboard sums immutable awarded points and counts correct solves. Teams are ranked by points (competition ranking for ties); ties are ordered for display by earliest last solve, team name, then team ID. The endpoint currently includes teams with at least one submission, including zero-point teams with only incorrect attempts.\n- This increment does not implement a distributed submission rate limiter or persistent administrative audit events.
 
 ## Registration and authorization
 
