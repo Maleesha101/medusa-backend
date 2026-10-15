@@ -1,0 +1,140 @@
+### MEDUSA API — Challenge Flags & Submissions
+### Run from VS Code REST Client. Use a local organizer/admin account.
+### Ensure the competition is public and active, and team belongs to its organization.
+
+@baseUrl = http://localhost:8000/api/v1
+@organizerEmail = organizer@example.com
+@participantEmail = user2@example.com
+@password = stringstring
+@organizationId = 1
+
+### 1. Organizer login
+# @name organizerLogin
+POST {{baseUrl}}/auth/token
+Content-Type: application/x-www-form-urlencoded
+
+username={{organizerEmail}}&password={{password}}
+
+### 2. Create a public test competition
+# @name createSubmissionCompetition
+POST {{baseUrl}}/competitions
+Authorization: Bearer {{organizerLogin.response.body.$.access_token}}
+Content-Type: application/json
+
+{
+  "organization_id": {{organizationId}},
+  "name": "Submission Test CTF2",
+  "slug": "submission-test-ctf2",
+  "description": "Local challenge submission API test",
+  "is_public": true
+}
+
+### 3. Publish competition
+PATCH {{baseUrl}}/competitions/{{createSubmissionCompetition.response.body.$.id}}/status
+Authorization: Bearer {{organizerLogin.response.body.$.access_token}}
+Content-Type: application/json
+
+{
+  "status": "published"
+}
+
+### 4. Create round
+# @name createSubmissionRound
+POST {{baseUrl}}/competitions/{{createSubmissionCompetition.response.body.$.id}}/rounds
+Authorization: Bearer {{organizerLogin.response.body.$.access_token}}
+Content-Type: application/json
+
+{
+  "name": "Submission Round",
+  "slug": "submission-round",
+  "position": 1
+}
+
+### 5. Create draft challenge
+# @name createSubmissionChallenge
+POST {{baseUrl}}/rounds/{{createSubmissionRound.response.body.$.id}}/challenges
+Authorization: Bearer {{organizerLogin.response.body.$.access_token}}
+Content-Type: application/json
+
+{
+  "name": "Beacon Trace",
+  "slug": "beacon-trace2",
+  "description": "Identify the beacon in the supplied packet capture.",
+  "category": "Forensics",
+  "points": 200,
+  "difficulty": "medium"
+}
+
+### 6. Set challenge flag (local testing only; never use real production flags here)
+PUT {{baseUrl}}/challenges/{{createSubmissionChallenge.response.body.id}}/flag
+Authorization: Bearer {{organizerLogin.response.body.access_token}}
+Content-Type: application/json
+
+{
+  "flag": "MEDUSA{replace_this_with_a_local_test_flag}"
+}
+
+### 7. Publish challenge
+PATCH {{baseUrl}}/challenges/{{createSubmissionChallenge.response.body.$.id}}/status
+Authorization: Bearer {{organizerLogin.response.body.$.access_token}}
+Content-Type: application/json
+
+{
+  "status": "published"
+}
+
+### 8. Move competition to active
+PATCH {{baseUrl}}/competitions/{{createSubmissionCompetition.response.body.$.id}}/status
+Authorization: Bearer {{organizerLogin.response.body.$.access_token}}
+Content-Type: application/json
+
+{
+  "status": "active"
+}
+
+### 9. Participant login
+# @name participantLogin
+POST {{baseUrl}}/auth/token
+Content-Type: application/x-www-form-urlencoded
+
+username={{participantEmail}}&password={{password}}
+
+### 10. Create a team as the participant (use the existing organization ID)
+# @name createSubmissionTeam
+POST {{baseUrl}}/organizations/{{organizationId}}/teams
+Authorization: Bearer {{participantLogin.response.body.$.access_token}}
+Content-Type: application/json
+
+{
+  "name": "Submission Test Team"
+}
+
+### 11. Submit an incorrect flag (expected correct=false)
+POST {{baseUrl}}/challenges/{{createSubmissionChallenge.response.body.$.id}}/submissions
+Authorization: Bearer {{participantLogin.response.body.$.access_token}}
+Content-Type: application/json
+
+{
+  "team_id": {{createSubmissionTeam.response.body.$.id}},
+  "flag": "MEDUSA{wrong_local_test_flag}"
+}
+
+### 12. Submit the correct local test flag (expected correct=true)
+POST {{baseUrl}}/challenges/{{createSubmissionChallenge.response.body.$.id}}/submissions
+Authorization: Bearer {{participantLogin.response.body.$.access_token}}
+Content-Type: application/json
+
+{
+  "team_id": {{createSubmissionTeam.response.body.$.id}},
+  "flag": "MEDUSA{replace_this_with_a_local_test_flag}"
+}
+
+### 13. Submit again after solve (expected 409)
+POST {{baseUrl}}/challenges/{{createSubmissionChallenge.response.body.$.id}}/submissions
+Authorization: Bearer {{participantLogin.response.body.$.access_token}}
+Content-Type: application/json
+
+{
+  "team_id": {{createSubmissionTeam.response.body.$.id}},
+  "flag": "MEDUSA{replace_this_with_a_local_test_flag}"
+}
