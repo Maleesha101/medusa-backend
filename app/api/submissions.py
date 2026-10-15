@@ -9,6 +9,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.api.dependencies import get_current_user, require_roles
+from app.core.config import get_settings
 from app.db.session import get_db
 from app.models.challenge import Challenge
 from app.models.challenge_flag import ChallengeFlag
@@ -28,8 +29,9 @@ router = APIRouter(tags=["submissions"])
 
 
 def _flag_digest(flag: str) -> str:
-    """Hash a flag without retaining its plaintext value."""
-    return hashlib.sha256(flag.encode("utf-8")).hexdigest()
+    """Create a keyed digest so a database-only leak does not enable offline guessing."""
+    key = get_settings().auth_secret_key.encode("utf-8")
+    return hmac.new(key, flag.encode("utf-8"), hashlib.sha256).hexdigest()
 
 
 @router.put("/challenges/{challenge_id}/flag", status_code=status.HTTP_204_NO_CONTENT)
@@ -98,6 +100,9 @@ def submit_challenge_flag(
     team = db.get(Team, payload.team_id)
     if team is None:
         raise HTTPException(status_code=404, detail="Team not found")
+    if team.organization_id != competition.organization_id:
+        raise HTTPException(status_code=403, detail="Team is not registered with this competition")
+
     membership = db.scalar(
         select(Membership).where(
             Membership.team_id == payload.team_id,
