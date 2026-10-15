@@ -82,9 +82,7 @@ def submit_challenge_flag(
         raise HTTPException(status_code=404, detail="Challenge not found")
 
     round_item = db.get(CompetitionRound, challenge.round_id)
-    competition = (
-        db.get(Competition, round_item.competition_id) if round_item is not None else None
-    )
+    competition = db.get(Competition, round_item.competition_id) if round_item is not None else None
     if competition is None:
         raise HTTPException(status_code=404, detail="Challenge not found")
     if competition.status != "active":
