@@ -4,8 +4,8 @@
 
 @baseUrl = http://localhost:8000/api/v1
 @organizerEmail = organizer@example.com
-@participantEmail = participant@example.com
-@password = Replace-With-A-Long-Local-Test-Password
+@participantEmail = user2@example.com
+@password = stringstring
 @organizationId = 1
 
 ### 1. Organizer login
@@ -23,8 +23,8 @@ Content-Type: application/json
 
 {
   "organization_id": {{organizationId}},
-  "name": "Submission Test CTF",
-  "slug": "submission-test-ctf",
+  "name": "Submission Test CTF2",
+  "slug": "submission-test-ctf2",
   "description": "Local challenge submission API test",
   "is_public": true
 }
@@ -58,7 +58,7 @@ Content-Type: application/json
 
 {
   "name": "Beacon Trace",
-  "slug": "beacon-trace",
+  "slug": "beacon-trace2",
   "description": "Identify the beacon in the supplied packet capture.",
   "category": "Forensics",
   "points": 200,
@@ -66,8 +66,8 @@ Content-Type: application/json
 }
 
 ### 6. Set challenge flag (local testing only; never use real production flags here)
-PUT {{baseUrl}}/challenges/{{createSubmissionChallenge.response.body.$.id}}/flag
-Authorization: Bearer {{organizerLogin.response.body.$.access_token}}
+PUT {{baseUrl}}/challenges/{{createSubmissionChallenge.response.body.id}}/flag
+Authorization: Bearer {{organizerLogin.response.body.access_token}}
 Content-Type: application/json
 
 {
