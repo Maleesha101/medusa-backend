@@ -147,9 +147,7 @@ def test_participant_cannot_author_challenge(client: TestClient, session_factory
     assert response.status_code == 403
 
 
-def test_duplicate_challenge_slug_and_invalid_points(
-    client: TestClient, session_factory
-) -> None:
+def test_duplicate_challenge_slug_and_invalid_points(client: TestClient, session_factory) -> None:
     token, organization_id = prepare_organizer(
         client, session_factory, "challenge-validation@example.com"
     )
@@ -162,9 +160,7 @@ def test_duplicate_challenge_slug_and_invalid_points(
         "category": "Web",
         "points": 100,
     }
-    first = client.post(
-        f"/api/v1/rounds/{round_id}/challenges", json=payload, headers=headers
-    )
+    first = client.post(f"/api/v1/rounds/{round_id}/challenges", json=payload, headers=headers)
     assert first.status_code == 201
     duplicate = client.post(
         f"/api/v1/rounds/{round_id}/challenges",
