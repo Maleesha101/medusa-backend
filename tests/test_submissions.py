@@ -186,6 +186,16 @@ def test_flag_lifecycle_and_submission_replay_protection(client, session_factory
     assert scoreboard.json()["entries"][0]["points"] == 200
     assert scoreboard.json()["entries"][0]["solves"] == 1
 
+    # A later challenge-point edit must not rewrite an already-earned score.
+    updated_challenge = client.patch(
+        f"/api/v1/challenges/{challenge_id}",
+        json={"points": 500},
+        headers=headers,
+    )
+    assert updated_challenge.status_code == 200
+    unchanged_scoreboard = client.get(f"/api/v1/competitions/{competition_id}/scoreboard")
+    assert unchanged_scoreboard.json()["entries"][0]["points"] == 200
+
 
 def test_cannot_publish_challenge_without_flag(client, session_factory):
     token, organization_id = _prepare_organizer(
