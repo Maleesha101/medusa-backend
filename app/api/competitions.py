@@ -83,7 +83,9 @@ def create_competition(
         db.commit()
     except IntegrityError:
         db.rollback()
-        raise HTTPException(status_code=409, detail="Competition slug already exists") from None
+        raise HTTPException(
+            status_code=409, detail="Competition slug already exists"
+        ) from None
     db.refresh(competition)
     return competition
 
@@ -93,9 +95,13 @@ def get_competition(
     competition_id: int,
     db: Session = Depends(get_db),
 ) -> Competition:
-    """Get public competitions or a private competition by an authorized account."""
+    """Get a published, active, or completed public competition."""
     competition = _competition_or_404(db, competition_id)
-    if not competition.is_public or competition.status not in {"published", "active", "completed"}:
+    if not competition.is_public or competition.status not in {
+        "published",
+        "active",
+        "completed",
+    }:
         raise HTTPException(status_code=404, detail="Competition not found")
     return competition
 
@@ -127,13 +133,14 @@ def update_competition_status(
 def list_rounds(
     competition_id: int,
     db: Session = Depends(get_db),
-    user: User | None = Depends(get_current_user),
 ) -> list[CompetitionRound]:
-    """List rounds for a public competition or an authorized account."""
+    """List rounds only when their competition is publicly visible."""
     competition = _competition_or_404(db, competition_id)
-    if not competition.is_public and (
-        user is None or user.role not in {"organizer", "admin"}
-    ):
+    if not competition.is_public or competition.status not in {
+        "published",
+        "active",
+        "completed",
+    }:
         raise HTTPException(status_code=404, detail="Competition not found")
     query = (
         select(CompetitionRound)
@@ -157,7 +164,10 @@ def create_round(
     """Create a round with a unique position and slug within the competition."""
     competition = _competition_or_404(db, competition_id)
     if competition.status in {"completed", "archived"}:
-        raise HTTPException(status_code=409, detail="Cannot add rounds to a finished competition")
+        raise HTTPException(
+            status_code=409,
+            detail="Cannot add rounds to a finished competition",
+        )
     round_item = CompetitionRound(
         competition_id=competition_id,
         name=payload.name.strip(),
