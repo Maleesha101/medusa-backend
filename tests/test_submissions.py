@@ -127,7 +127,9 @@ def _prepare_active_challenge(client, session_factory):
 
 
 def test_flag_lifecycle_and_submission_replay_protection(client, session_factory):
-    _, challenge_id, team_id, headers, competition_id = _prepare_active_challenge(client, session_factory)
+    _, challenge_id, team_id, headers, competition_id = _prepare_active_challenge(
+        client, session_factory
+    )
 
     wrong = client.post(
         f"/api/v1/challenges/{challenge_id}/submissions",
@@ -147,7 +149,12 @@ def test_flag_lifecycle_and_submission_replay_protection(client, session_factory
     assert correct.status_code == 200
     assert correct.json()["correct"] is True
     with session_factory() as db:
-        solved = db.scalar(select(ChallengeSubmission).where(ChallengeSubmission.challenge_id == challenge_id, ChallengeSubmission.is_correct.is_(True)))
+        solved = db.scalar(
+            select(ChallengeSubmission).where(
+                ChallengeSubmission.challenge_id == challenge_id,
+                ChallengeSubmission.is_correct.is_(True),
+            )
+        )
         assert solved is not None
         assert solved.points_awarded == 200
     assert correct_flag not in correct.text
