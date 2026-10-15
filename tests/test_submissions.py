@@ -123,11 +123,11 @@ def _prepare_active_challenge(client, session_factory):
         headers=headers,
     )
     assert active.status_code == 200
-    return organizer_token, challenge_id, team_id, headers
+    return organizer_token, challenge_id, team_id, headers, competition_id
 
 
 def test_flag_lifecycle_and_submission_replay_protection(client, session_factory):
-    _, challenge_id, team_id, headers = _prepare_active_challenge(client, session_factory)
+    _, challenge_id, team_id, headers, competition_id = _prepare_active_challenge(client, session_factory)
 
     wrong = client.post(
         f"/api/v1/challenges/{challenge_id}/submissions",
@@ -146,6 +146,10 @@ def test_flag_lifecycle_and_submission_replay_protection(client, session_factory
     )
     assert correct.status_code == 200
     assert correct.json()["correct"] is True
+    with session_factory() as db:
+        solved = db.scalar(select(ChallengeSubmission).where(ChallengeSubmission.challenge_id == challenge_id, ChallengeSubmission.is_correct.is_(True)))
+        assert solved is not None
+        assert solved.points_awarded == 200
     assert correct_flag not in correct.text
 
     repeated = client.post(
@@ -167,6 +171,13 @@ def test_flag_lifecycle_and_submission_replay_protection(client, session_factory
         assert len(attempts) == 2
         assert all(not hasattr(attempt, "flag") for attempt in attempts)
         assert sum(attempt.is_correct for attempt in attempts) == 1
+        assert sum(attempt.points_awarded for attempt in attempts) == 200
+
+    scoreboard = client.get(f"/api/v1/competitions/{competition_id}/scoreboard")
+    assert scoreboard.status_code == 200
+    assert scoreboard.json()["entries"][0]["team_id"] == team_id
+    assert scoreboard.json()["entries"][0]["points"] == 200
+    assert scoreboard.json()["entries"][0]["solves"] == 1
 
 
 def test_cannot_publish_challenge_without_flag(client, session_factory):
@@ -195,7 +206,7 @@ def test_cannot_publish_challenge_without_flag(client, session_factory):
 
 
 def test_non_member_cannot_submit_for_team(client, session_factory):
-    _, challenge_id, team_id, _ = _prepare_active_challenge(client, session_factory)
+    _, challenge_id, team_id, _, _ = _prepare_active_challenge(client, session_factory)
     outsider_email = "submission-outsider@example.com"
     outsider_token = _register_and_login(client, outsider_email)
     response = client.post(
