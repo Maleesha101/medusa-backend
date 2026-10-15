@@ -49,9 +49,7 @@ def test_participant_cannot_create_competition(client: TestClient) -> None:
 
 
 def test_competition_round_lifecycle(client: TestClient, session_factory) -> None:
-    token, organization_id = prepare_organizer(
-        client, session_factory, "organizer@example.com"
-    )
+    token, organization_id = prepare_organizer(client, session_factory, "organizer@example.com")
     headers = {"Authorization": f"Bearer {token}"}
     created = client.post(
         "/api/v1/competitions",
@@ -108,9 +106,7 @@ def test_competition_round_lifecycle(client: TestClient, session_factory) -> Non
 
 
 def test_competition_schedule_validation(client: TestClient, session_factory) -> None:
-    token, organization_id = prepare_organizer(
-        client, session_factory, "schedule@example.com"
-    )
+    token, organization_id = prepare_organizer(client, session_factory, "schedule@example.com")
     response = client.post(
         "/api/v1/competitions",
         json={
