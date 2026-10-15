@@ -2,24 +2,82 @@ from sqlalchemy import select
 
 from app.models.challenge_flag import ChallengeFlag
 from app.models.challenge_submission import ChallengeSubmission
+from app.models.competition import Competition
+from app.models.competition_round import CompetitionRound
 from app.models.membership import Membership
+from app.models.organization import Organization
 from app.models.team import Team
 from app.models.user import User
 
-from tests.test_challenges import create_public_round, prepare_organizer, register_and_login
 
-
-def prepare_active_challenge(client, session_factory):
-    organizer_token, organization_id = prepare_organizer(
-        client, session_factory, "submission-organizer@example.com"
+def _register_and_login(client, email: str) -> str:
+    password = "a-very-long-test-password"
+    registered = client.post(
+        "/api/v1/auth/register",
+        json={"email": email, "password": password},
     )
-    organizer_headers = {"Authorization": f"Bearer {organizer_token}"}
-    round_id = create_public_round(client, organizer_token, organization_id)
+    assert registered.status_code == 201
+    login = client.post(
+        "/api/v1/auth/token",
+        data={"username": email, "password": password},
+    )
+    assert login.status_code == 200
+    return login.json()["access_token"]
+
+
+def _prepare_organizer(client, session_factory, email: str) -> tuple[str, int]:
+    token = _register_and_login(client, email)
+    with session_factory() as db:
+        organizer = db.scalar(select(User).where(User.email == email))
+        assert organizer is not None
+        organizer.role = "organizer"
+        db.commit()
+        organization = Organization(name="Submission Test University", slug="submission-test-university")
+        db.add(organization)
+        db.commit()
+        organization_id = organization.id
+    return token, organization_id
+
+
+def _create_round(client, token: str, organization_id: int) -> tuple[int, int]:
+    headers = {"Authorization": f"Bearer {token}"}
+    response = client.post(
+        "/api/v1/competitions",
+        json={
+            "organization_id": organization_id,
+            "name": "Submission Test CTF",
+            "slug": "submission-test-ctf",
+            "is_public": True,
+        },
+        headers=headers,
+    )
+    assert response.status_code == 201
+    competition_id = response.json()["id"]
+    published = client.patch(
+        f"/api/v1/competitions/{competition_id}/status",
+        json={"status": "published"},
+        headers=headers,
+    )
+    assert published.status_code == 200
+    round_response = client.post(
+        f"/api/v1/competitions/{competition_id}/rounds",
+        json={"name": "Qualifiers", "slug": "qualifiers", "position": 1},
+        headers=headers,
+    )
+    assert round_response.status_code == 201
+    return competition_id, round_response.json()["id"]
+
+
+def _prepare_active_challenge(client, session_factory):
+    organizer_email = "submission-organizer@example.com"
+    organizer_token, organization_id = _prepare_organizer(
+        client, session_factory, organizer_email
+    )
+    headers = {"Authorization": f"Bearer {organizer_token}"}
+    competition_id, round_id = _create_round(client, organizer_token, organization_id)
 
     with session_factory() as db:
-        organizer = db.scalar(
-            select(User).where(User.email == "submission-organizer@example.com")
-        )
+        organizer = db.scalar(select(User).where(User.email == organizer_email))
         assert organizer is not None
         team = Team(
             organization_id=organization_id,
@@ -42,7 +100,7 @@ def prepare_active_challenge(client, session_factory):
             "points": 200,
             "difficulty": "medium",
         },
-        headers=organizer_headers,
+        headers=headers,
     )
     assert created.status_code == 201
     challenge_id = created.json()["id"]
@@ -50,33 +108,28 @@ def prepare_active_challenge(client, session_factory):
     configured = client.put(
         f"/api/v1/challenges/{challenge_id}/flag",
         json={"flag": "MEDUSA{packet_beacon_found_2026}"},
-        headers=organizer_headers,
+        headers=headers,
     )
     assert configured.status_code == 204
 
     published_challenge = client.patch(
         f"/api/v1/challenges/{challenge_id}/status",
         json={"status": "published"},
-        headers=organizer_headers,
+        headers=headers,
     )
     assert published_challenge.status_code == 200
-
-    with session_factory() as db:
-        competition_id = db.get(__import__(
-            "app.models.competition_round", fromlist=["CompetitionRound"]
-        ).CompetitionRound, round_id).competition_id
 
     active = client.patch(
         f"/api/v1/competitions/{competition_id}/status",
         json={"status": "active"},
-        headers=organizer_headers,
+        headers=headers,
     )
     assert active.status_code == 200
-    return organizer_token, challenge_id, team_id, organizer_headers
+    return organizer_token, challenge_id, team_id, headers
 
 
 def test_flag_lifecycle_and_submission_replay_protection(client, session_factory):
-    token, challenge_id, team_id, headers = prepare_active_challenge(client, session_factory)
+    _, challenge_id, team_id, headers = _prepare_active_challenge(client, session_factory)
 
     wrong = client.post(
         f"/api/v1/challenges/{challenge_id}/submissions",
@@ -121,11 +174,11 @@ def test_flag_lifecycle_and_submission_replay_protection(client, session_factory
 
 
 def test_cannot_publish_challenge_without_flag(client, session_factory):
-    token, organization_id = prepare_organizer(
+    token, organization_id = _prepare_organizer(
         client, session_factory, "missing-flag-organizer@example.com"
     )
     headers = {"Authorization": f"Bearer {token}"}
-    round_id = create_public_round(client, token, organization_id)
+    _, round_id = _create_round(client, token, organization_id)
     created = client.post(
         f"/api/v1/rounds/{round_id}/challenges",
         json={
@@ -146,24 +199,37 @@ def test_cannot_publish_challenge_without_flag(client, session_factory):
 
 
 def test_non_member_cannot_submit_for_team(client, session_factory):
-    organizer_token, challenge_id, team_id, _ = prepare_active_challenge(
-        client, session_factory
-    )
+    _, challenge_id, team_id, _ = _prepare_active_challenge(client, session_factory)
     outsider_email = "submission-outsider@example.com"
-    outsider_password = "a-very-long-test-password"
-    registered = client.post(
-        "/api/v1/auth/register",
-        json={"email": outsider_email, "password": outsider_password},
-    )
-    assert registered.status_code == 201
-    login = client.post(
-        "/api/v1/auth/token",
-        data={"username": outsider_email, "password": outsider_password},
-    )
-    assert login.status_code == 200
+    outsider_token = _register_and_login(client, outsider_email)
     response = client.post(
         f"/api/v1/challenges/{challenge_id}/submissions",
         json={"team_id": team_id, "flag": "MEDUSA{packet_beacon_found_2026}"},
-        headers={"Authorization": f"Bearer {login.json()['access_token']}"},
+        headers={"Authorization": f"Bearer {outsider_token}"},
+    )
+    assert response.status_code == 403
+
+
+def test_flag_endpoint_rejects_participant(client, session_factory):
+    token, organization_id = _prepare_organizer(
+        client, session_factory, "flag-permission-organizer@example.com"
+    )
+    _, round_id = _create_round(client, token, organization_id)
+    challenge = client.post(
+        f"/api/v1/rounds/{round_id}/challenges",
+        json={
+            "name": "Protected Flag",
+            "slug": "protected-flag",
+            "description": "Organizer-only flag setup.",
+            "category": "Web",
+        },
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert challenge.status_code == 201
+    participant_token = _register_and_login(client, "flag-permission-participant@example.com")
+    response = client.put(
+        f"/api/v1/challenges/{challenge.json()['id']}/flag",
+        json={"flag": "MEDUSA{must_not_be_set_by_participant}"},
+        headers={"Authorization": f"Bearer {participant_token}"},
     )
     assert response.status_code == 403
