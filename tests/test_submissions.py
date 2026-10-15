@@ -2,7 +2,6 @@ from sqlalchemy import select
 
 from app.models.challenge_flag import ChallengeFlag
 from app.models.challenge_submission import ChallengeSubmission
-from app.models.competition import Competition
 from app.models.competition_round import CompetitionRound
 from app.models.membership import Membership
 from app.models.organization import Organization
@@ -32,7 +31,9 @@ def _prepare_organizer(client, session_factory, email: str) -> tuple[str, int]:
         assert organizer is not None
         organizer.role = "organizer"
         db.commit()
-        organization = Organization(name="Submission Test University", slug="submission-test-university")
+        organization = Organization(
+            name="Submission Test University", slug="submission-test-university"
+        )
         db.add(organization)
         db.commit()
         organization_id = organization.id
