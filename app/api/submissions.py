@@ -26,6 +26,7 @@ from app.schemas.submissions import (
     ChallengeSubmissionResult,
 )
 from app.services.audit import record_audit_event
+from app.services.scoreboard_events import publish_scoreboard_update
 
 router = APIRouter(tags=["submissions"])
 
@@ -177,6 +178,8 @@ def submit_challenge_flag(
         raise
 
     db.refresh(attempt)
+    if is_correct:
+        publish_scoreboard_update(competition.id, attempt.id)
     return ChallengeSubmissionResult(
         submission_id=attempt.id,
         challenge_id=attempt.challenge_id,
