@@ -62,6 +62,13 @@ def set_challenge_flag(
     else:
         stored_flag.flag_hash = _flag_digest(payload.flag)
 
+    record_audit_event(
+        db,
+        actor=_user,
+        action="challenge.flag_configured",
+        resource_type="challenge",
+        resource_id=challenge_id,
+    )
     db.commit()
     return None
 
