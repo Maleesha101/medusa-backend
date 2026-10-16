@@ -1,12 +1,16 @@
 """Registration, token issuance, and current-user endpoints."""
 
-from fastapi import APIRouter, Depends, HTTPException, status
+import hashlib
+
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.api.dependencies import get_current_user
+from app.core.config import get_settings
+from app.core.rate_limit import consume_rate_limit
 from app.core.security import create_access_token, hash_password, verify_password
 from app.db.session import get_db
 from app.models.user import User
@@ -15,9 +19,31 @@ from app.schemas.auth import TokenResponse, UserPublic, UserRegister
 router = APIRouter(prefix="/auth", tags=["authentication"])
 
 
+def _client_ip(request: Request) -> str:
+    """Use the direct peer address; forwarded headers require trusted proxy handling."""
+    return request.client.host if request.client is not None else "unknown"
+
+
+def _account_key(username: str) -> str:
+    """Hash the normalized account identifier so it is not stored in Redis keys."""
+    normalized = username.strip().lower()
+    digest = hashlib.sha256(normalized.encode("utf-8")).hexdigest()
+    return f"auth:token:account:{digest}"
+
+
 @router.post("/register", response_model=UserPublic, status_code=status.HTTP_201_CREATED)
-def register(payload: UserRegister, db: Session = Depends(get_db)) -> User:
+def register(
+    payload: UserRegister,
+    request: Request,
+    db: Session = Depends(get_db),
+) -> User:
     """Create a participant account. Public input cannot assign roles or active status."""
+    settings = get_settings()
+    consume_rate_limit(
+        key=f"auth:register:ip:{_client_ip(request)}",
+        limit=settings.registration_request_limit,
+        window_seconds=settings.registration_rate_window_seconds,
+    )
     email = str(payload.email).strip().lower()
     existing = db.scalar(select(User).where(User.email == email))
     if existing is not None:
@@ -38,6 +64,7 @@ def register(payload: UserRegister, db: Session = Depends(get_db)) -> User:
 
 @router.post("/token", response_model=TokenResponse)
 def issue_token(
+    request: Request,
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: Session = Depends(get_db),
 ) -> TokenResponse:
@@ -45,6 +72,18 @@ def issue_token(
 
     The OAuth2 form field named username must contain the user's email address.
     """
+    settings = get_settings()
+    ip = _client_ip(request)
+    consume_rate_limit(
+        key=f"auth:token:ip:{ip}",
+        limit=settings.token_request_limit_per_ip,
+        window_seconds=settings.token_rate_window_seconds,
+    )
+    consume_rate_limit(
+        key=_account_key(form_data.username),
+        limit=settings.token_request_limit_per_account,
+        window_seconds=settings.token_rate_window_seconds,
+    )
     email = form_data.username.strip().lower()
     user = db.scalar(select(User).where(User.email == email))
     if (
