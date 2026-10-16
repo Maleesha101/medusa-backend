@@ -59,7 +59,8 @@ Competition slugs are globally unique. A competition starts in draft. Allowed tr
 | PATCH | /api/v1/challenges/{challenge_id} | Update challenge metadata | Organizer or admin |
 | PATCH | /api/v1/challenges/{challenge_id}/status | Publish or archive a challenge | Organizer or admin |
 | PUT | /api/v1/challenges/{challenge_id}/flag | Set or replace the flag for a draft challenge | Organizer or admin |
-| POST | /api/v1/challenges/{challenge_id}/submissions | Submit a flag for a team | Authenticated team member |\n| GET | /api/v1/competitions/{competition_id}/scoreboard | Get public competition standings | Public; competition must be public and published, active, or completed |
+| POST | /api/v1/challenges/{challenge_id}/submissions | Submit a flag for a team | Authenticated team member |
+| GET | /api/v1/competitions/{competition_id}/scoreboard | Get public competition standings | Public; competition must be public and published, active, or completed |
 | GET | /api/v1/audit-events | Query recent security-sensitive audit events | Admin only; supports action, resource_type, actor_user_id, limit (1–100), and offset filters |
 
 Challenge slugs are unique within a round. Points must be between 1 and 10,000. Difficulty is one of easy, medium, hard, or expert. New challenges always start as drafts; clients cannot set status during creation or metadata updates. Allowed status transitions are draft to published and published to archived. A challenge must have a configured flag before it can be published. Archived challenges cannot be edited. Finished competitions cannot receive new challenges. Public responses contain challenge metadata only.
