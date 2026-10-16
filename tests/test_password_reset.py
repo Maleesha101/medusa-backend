@@ -68,9 +68,10 @@ def test_password_reset_changes_password_and_invalidates_existing_access_tokens(
 
     reset = _confirm_reset(client, _extract_token(delivered))
     assert reset.status_code == 204
-    assert client.get(
-        "/api/v1/auth/me", headers={"Authorization": f"Bearer {old_token}"}
-    ).status_code == 401
+    assert (
+        client.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {old_token}"}).status_code
+        == 401
+    )
 
     new_login = client.post(
         "/api/v1/auth/token",
@@ -80,10 +81,13 @@ def test_password_reset_changes_password_and_invalidates_existing_access_tokens(
         },
     )
     assert new_login.status_code == 200
-    assert client.get(
-        "/api/v1/auth/me",
-        headers={"Authorization": f"Bearer {new_login.json()['access_token']}"},
-    ).status_code == 200
+    assert (
+        client.get(
+            "/api/v1/auth/me",
+            headers={"Authorization": f"Bearer {new_login.json()['access_token']}"},
+        ).status_code
+        == 200
+    )
 
 
 def test_reset_token_is_single_use(client, monkeypatch):
