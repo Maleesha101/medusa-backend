@@ -4,7 +4,7 @@ The backend platform for **MEDUSA** — a modular, security-first CTF and compet
 
 ## Project status
 
-The repository contains the application foundation, identity/authentication, organization/team membership APIs, competition/round management, challenge authoring/catalog, challenge submission and flag validation, and initial scoring and public scoreboard endpoints. It is not yet production-ready. Persistent audit events, sandbox APIs, distributed submission rate limiting, and production hardening remain future work.
+The repository contains the application foundation, identity/authentication, organization/team membership APIs, competition/round management, challenge authoring/catalog, challenge submission and flag validation, and initial scoring and public scoreboard endpoints. It is not yet production-ready. Persistent audit events and distributed submission rate limiting are implemented; sandbox APIs and production hardening remain future work.
 
 ## Architecture direction
 
@@ -38,7 +38,7 @@ MEDUSA uses a **modular monolith** initially. Domain boundaries are explicit, bu
 - PUT /api/v1/challenges/{challenge_id}/flag — configure a draft challenge's private flag (organizer/admin)
 - POST /api/v1/challenges/{challenge_id}/submissions — submit a flag for a team
 
-Organization and competition creation and lifecycle changes require an organizer or admin role. Public registration always creates a participant; assign organizer/admin roles through a controlled administrative process. Team creators become captains. Challenge flags are stored as keyed digests using the configured authentication secret; changing that secret requires reconfiguring challenge flags. Submission records store the user, team, challenge, correctness, and timestamp, but not the submitted flag. A team may solve each challenge only once. A team must belong to the competition's organization, and the submitting user must be a member of that team. Submissions are accepted only while the competition is active. See docs/api-contract.md and docs/security-baseline.md for access rules and limitations.
+Organization and competition creation and lifecycle changes require an organizer or admin role. Public registration always creates a participant; assign organizer/admin roles through a controlled administrative process. Team creators become captains. Submission requests use Redis-backed fixed-window limits: 60 requests per user and 10 incorrect attempts per team/challenge per 60 seconds by default. Configure these with SUBMISSION_REQUEST_LIMIT, INCORRECT_SUBMISSION_LIMIT, and SUBMISSION_RATE_WINDOW_SECONDS. Exceeding a limit returns HTTP 429 with Retry-After; if Redis is unavailable, submission protection fails closed with HTTP 503. Challenge flags are stored as keyed digests using the configured authentication secret; changing that secret requires reconfiguring challenge flags. Submission records store the user, team, challenge, correctness, and timestamp, but not the submitted flag. A team may solve each challenge only once. A team must belong to the competition's organization, and the submitting user must be a member of that team. Submissions are accepted only while the competition is active. See docs/api-contract.md and docs/security-baseline.md for access rules and limitations.
 
 ## Local development
 
@@ -79,10 +79,10 @@ ruff format --check .
 2. **Identity foundation:** users, password hashing, access tokens, role checks, and schema migrations.
 3. **Organization/team foundation:** organizations, teams, membership, and access control.
 4. **Competition/round foundation:** competition metadata, lifecycle transitions, schedules, and ordered rounds.
-5. **CTF engine:** challenge authoring/catalog, flag submission/validation, immutable solve-time point awards, and public scoreboards are implemented; persistent audit event logging remains future work.
+5. **CTF engine:** challenge authoring/catalog, flag submission/validation, immutable solve-time point awards, public scoreboards, persistent audit events, and Redis-backed submission rate limits are implemented.
 6. **Infrastructure integration:** ephemeral challenge instances, sandbox controller, resource limits, and isolation.
 7. **Realtime and SOC:** WebSocket events, alerts, operational visibility, and integrations.
-8. **Hardening and scale:** threat modeling, rate limits, load testing, observability, backups, and deployment security.
+8. **Hardening and scale:** threat modeling, registration/token rate limits, load testing, observability, backups, and deployment security.
 
 ## Security principles
 

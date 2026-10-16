@@ -15,6 +15,9 @@ class Settings(BaseSettings):
     api_v1_prefix: str = "/api/v1"
     database_url: str
     redis_url: str = "redis://localhost:6379/0"
+    submission_request_limit: int = Field(default=60, ge=1, le=10000)
+    incorrect_submission_limit: int = Field(default=10, ge=1, le=10000)
+    submission_rate_window_seconds: int = Field(default=60, ge=1, le=86400)
     auth_secret_key: str = _DEVELOPMENT_SECRET
     access_token_expire_minutes: int = Field(default=15, ge=1, le=60)
     token_issuer: str = "medusa-backend"

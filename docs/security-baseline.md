@@ -17,7 +17,7 @@ This is the minimum baseline for implementation; it is not a security certificat
 - Use generic login errors and deny inactive accounts.
 - Enforce authorization on every protected endpoint server-side; hiding UI controls is not authorization.
 - Use deny-by-default permissions and least-privilege service credentials.
-- Rate-limit registration, token issuance, and challenge submissions before public launch. Distributed submission rate limiting is not implemented in this increment.
+- Challenge submissions use shared Redis fixed-window limits: a general per-user request budget and a separate incorrect-attempt budget per team/challenge. Limits are configurable; over-limit responses include Retry-After. Redis failures fail closed with HTTP 503. Registration and token issuance still need dedicated rate limits before public launch.
 - Email verification, password reset, MFA, refresh-token rotation/revocation, and account recovery are not yet implemented.
 
 ## API and input handling
@@ -37,7 +37,7 @@ This is the minimum baseline for implementation; it is not a security certificat
 ## Auditability
 - Audit security-sensitive changes to platform settings, roles, competition configuration, challenge lifecycle, and flag updates.
 - Record actor, action, target, timestamp, and request correlation ID where available.
-- Never include uploaded file contents or secrets in audit records. Persistent audit events are not implemented yet.
+- Never include uploaded file contents or secrets in audit records. Persistent audit events are implemented for challenge submissions, flag configuration, challenge lifecycle changes, and competition status changes.
 
 ## CTF sandbox safety
 - Treat challenge images, files, and runtime behavior as untrusted.
