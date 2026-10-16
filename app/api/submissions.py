@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 
 from app.api.dependencies import get_current_user, require_roles
 from app.core.config import get_settings
+from app.core.rate_limit import consume_rate_limit
 from app.db.session import get_db
 from app.models.challenge import Challenge
 from app.models.challenge_flag import ChallengeFlag
@@ -85,6 +86,13 @@ def submit_challenge_flag(
     user: User = Depends(get_current_user),
 ) -> ChallengeSubmissionResult:
     """Check a flag for a team the caller belongs to and record only the result."""
+    settings = get_settings()
+    consume_rate_limit(
+        key=f"medusa:submission:request:user:{user.id}",
+        limit=settings.submission_request_limit,
+        window_seconds=settings.submission_rate_window_seconds,
+    )
+
     challenge = db.get(Challenge, challenge_id)
     if challenge is None or challenge.status != "published":
         raise HTTPException(status_code=404, detail="Challenge not found")
@@ -129,6 +137,13 @@ def submit_challenge_flag(
         raise HTTPException(status_code=409, detail="Team has already solved this challenge")
 
     is_correct = hmac.compare_digest(_flag_digest(payload.flag), stored_flag.flag_hash)
+    if not is_correct:
+        consume_rate_limit(
+            key=f"medusa:submission:incorrect:team:{team.id}:challenge:{challenge_id}",
+            limit=settings.incorrect_submission_limit,
+            window_seconds=settings.submission_rate_window_seconds,
+        )
+
     attempt = ChallengeSubmission(
         challenge_id=challenge_id,
         team_id=payload.team_id,
