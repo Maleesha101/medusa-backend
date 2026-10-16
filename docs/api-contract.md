@@ -19,6 +19,8 @@ All public HTTP endpoints live under /api/v1. Breaking changes require a version
 | POST | /api/v1/auth/token | Exchange email/password for a short-lived access token | Public; Redis rate limits per client IP and normalized account |
 | GET | /api/v1/auth/me | Return the authenticated user's safe profile | Bearer token |
 | POST | /api/v1/auth/logout | Revoke the presented access token | Bearer token; returns 204 on success |
+| POST | /api/v1/auth/password-reset/request | Request password-reset instructions | Public; generic 202 response; Redis limits per IP and normalized email |
+| POST | /api/v1/auth/password-reset/confirm | Consume reset token and set a new password | Public; rate-limited; returns 204 on success |
 | GET | /api/v1/live | Process liveness | Public |
 | GET | /api/v1/ready | Database readiness | Public |
 
@@ -85,7 +87,7 @@ Access tokens identify the user; current role and active status are loaded from 
 
 ## Token policy
 
-Tokens are signed using HS256, include issuer, subject, issued-at, and expiration claims, and expire after 15 minutes by default (configurable from 1–60 minutes). Set a unique AUTH_SECRET_KEY of at least 32 characters in each deployment. The development placeholder must never be used in production. Refresh-token rotation, revocation, MFA, password reset, and email verification are not implemented in this phase.
+Tokens are signed using HS256, include issuer, subject, issued-at, and expiration claims, and expire after 15 minutes by default (configurable from 1–60 minutes). Set a unique AUTH_SECRET_KEY of at least 32 characters in each deployment. The development placeholder must never be used in production. Explicit logout revocation and password-reset invalidation are implemented. Reset tokens are random, single-use, expire after 30 minutes by default, and are stored only as SHA-256 hashes. Reset requests return the same 202 response whether or not the account exists. SMTP must be configured to deliver reset links. Refresh-token rotation, MFA, and email verification are not implemented.
 
 ## Readiness semantics
 - /live indicates the process can answer requests and does not check downstream dependencies.
