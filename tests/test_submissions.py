@@ -206,9 +206,8 @@ def test_flag_lifecycle_and_submission_replay_protection(client, session_factory
         assert {event.outcome for event in submission_events} == {"correct", "incorrect"}
         assert all(event.resource_type == "challenge" for event in submission_events)
         assert all("flag" not in (event.details or {}) for event in submission_events)
-        assert any(event.action == "challenge.flag_configured" for event in db.scalars(
-            select(AuditEvent)
-        ).all())
+        all_events = list(db.scalars(select(AuditEvent)).all())
+        assert any(event.action == "challenge.flag_configured" for event in all_events)
 
 
 def test_cannot_publish_challenge_without_flag(client, session_factory):
