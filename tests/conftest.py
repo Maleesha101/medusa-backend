@@ -25,7 +25,8 @@ class FakeRedis:
 
 @pytest.fixture(autouse=True)
 def fake_redis_for_tests(monkeypatch):
-    monkeypatch.setattr(rate_limit, "_get_redis_client", FakeRedis)
+    client = FakeRedis()
+    monkeypatch.setattr(rate_limit, "_get_redis_client", lambda: client)
 
 
 @pytest.fixture
