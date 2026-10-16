@@ -268,3 +268,38 @@ def test_flag_endpoint_rejects_participant(client, session_factory):
         headers={"Authorization": f"Bearer {participant_token}"},
     )
     assert response.status_code == 403
+
+ 
+
+def test_incorrect_submission_limit_is_shared_by_team_and_challenge(
+    client, session_factory
+):
+    _, challenge_id, team_id, headers, _ = _prepare_active_challenge(client, session_factory)
+
+    for attempt_number in range(10):
+        response = client.post(
+            f"/api/v1/challenges/{challenge_id}/submissions",
+            json={"team_id": team_id, "flag": f"MEDUSA{{wrong_{attempt_number}}}"},
+            headers=headers,
+        )
+        assert response.status_code == 200
+        assert response.json()["correct"] is False
+
+    blocked = client.post(
+        f"/api/v1/challenges/{challenge_id}/submissions",
+        json={"team_id": team_id, "flag": "MEDUSA{eleventh_wrong_attempt}"},
+        headers=headers,
+    )
+    assert blocked.status_code == 429
+    assert int(blocked.headers["Retry-After"]) >= 1
+
+    with session_factory() as db:
+        attempts = list(
+            db.scalars(
+                select(ChallengeSubmission).where(
+                    ChallengeSubmission.challenge_id == challenge_id,
+                    ChallengeSubmission.team_id == team_id,
+                )
+            ).all()
+        )
+        assert len(attempts) == 10
