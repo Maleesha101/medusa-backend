@@ -4,10 +4,28 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
+from app.core import rate_limit
 from app.db.base import Base
 from app.db.session import get_db
 from app.main import app
 from app.models import User  # noqa: F401 - ensure metadata is registered
+
+
+class FakeRedis:
+    """Per-test Redis substitute for deterministic API tests."""
+
+    def __init__(self):
+        self.counts = {}
+
+    def eval(self, script, key_count, key, window_seconds):
+        count = self.counts.get(key, 0) + 1
+        self.counts[key] = count
+        return count, window_seconds
+
+
+@pytest.fixture(autouse=True)
+def fake_redis_for_tests(monkeypatch):
+    monkeypatch.setattr(rate_limit, "_get_redis_client", FakeRedis)
 
 
 @pytest.fixture
