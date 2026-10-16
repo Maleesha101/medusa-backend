@@ -11,7 +11,6 @@ from app.models.competition import Competition
 from app.models.competition_round import CompetitionRound
 from app.models.organization import Organization
 from app.models.user import User
-from app.services.audit import record_audit_event
 from app.schemas.competitions import (
     CompetitionCreate,
     CompetitionPublic,
@@ -19,6 +18,7 @@ from app.schemas.competitions import (
     RoundCreate,
     RoundPublic,
 )
+from app.services.audit import record_audit_event
 
 router = APIRouter(prefix="/competitions", tags=["competitions"])
 
