@@ -46,3 +46,22 @@ def test_expired_token_is_rejected() -> None:
 
     with pytest.raises(jwt.ExpiredSignatureError):
         decode_access_token(token)
+
+
+def test_legacy_access_token_defaults_to_auth_version_zero() -> None:
+    settings = get_settings()
+    now = datetime.now(UTC)
+    token = jwt.encode(
+        {
+            "sub": "42",
+            "jti": "legacy-token-without-version",
+            "iat": now,
+            "exp": now + timedelta(minutes=5),
+            "iss": settings.token_issuer,
+        },
+        settings.auth_secret_key,
+        algorithm="HS256",
+    )
+
+    claims = decode_access_token(token)
+    assert claims["ver"] == 0
