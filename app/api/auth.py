@@ -237,6 +237,7 @@ def confirm_password_reset(
             PasswordResetToken.expires_at > now,
         )
         .values(used_at=now)
+        .execution_options(synchronize_session=False)
     )
     if consumed.rowcount != 1:
         db.rollback()
