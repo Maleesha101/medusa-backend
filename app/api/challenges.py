@@ -12,13 +12,13 @@ from app.models.challenge_flag import ChallengeFlag
 from app.models.competition import Competition
 from app.models.competition_round import CompetitionRound
 from app.models.user import User
-from app.services.audit import record_audit_event
 from app.schemas.challenges import (
     ChallengeCreate,
     ChallengePublic,
     ChallengeStatusUpdate,
     ChallengeUpdate,
 )
+from app.services.audit import record_audit_event
 
 router = APIRouter(tags=["challenges"])
 
