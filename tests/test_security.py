@@ -35,6 +35,7 @@ def test_expired_token_is_rejected() -> None:
     token = jwt.encode(
         {
             "sub": "42",
+            "jti": "expired-test-token",
             "iat": datetime.now(UTC) - timedelta(minutes=10),
             "exp": datetime.now(UTC) - timedelta(minutes=5),
             "iss": settings.token_issuer,

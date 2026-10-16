@@ -18,6 +18,7 @@ All public HTTP endpoints live under /api/v1. Breaking changes require a version
 | POST | /api/v1/auth/register | Create a participant account | Public; role is assigned by the server; Redis rate limit per client IP |
 | POST | /api/v1/auth/token | Exchange email/password for a short-lived access token | Public; Redis rate limits per client IP and normalized account |
 | GET | /api/v1/auth/me | Return the authenticated user's safe profile | Bearer token |
+| POST | /api/v1/auth/logout | Revoke the presented access token | Bearer token; returns 204 on success |
 | GET | /api/v1/live | Process liveness | Public |
 | GET | /api/v1/ready | Database readiness | Public |
 
@@ -106,3 +107,8 @@ When a correct flag submission commits, the API publishes a `scoreboard.updated`
 
 
 Authentication rate limits use shared Redis fixed windows. Defaults are 5 registration requests per IP per 600 seconds, 20 token requests per IP per 60 seconds, and 5 token requests per normalized account per 60 seconds. Over-limit responses return HTTP 429 with a Retry-After header. Redis failures fail closed with HTTP 503. The account identifier is hashed before inclusion in a Redis key. The API uses the direct peer IP; deployments behind a reverse proxy must configure trusted proxy handling rather than trusting arbitrary client-supplied forwarding headers.
+
+
+## Access-token revocation
+
+Access tokens include a unique token identifier (`jti`). `POST /api/v1/auth/logout` adds that identifier to a Redis denylist until the token's expiration. Authenticated requests check the denylist, so the logged-out token is rejected immediately. The denylist is shared across API replicas and entries expire automatically. Redis failures fail closed with HTTP 503 for authenticated requests and logout, rather than silently accepting a token whose revocation status cannot be checked. Logging out revokes only the presented access token; it does not revoke other tokens issued to the same account.

@@ -2,6 +2,7 @@
 
 from datetime import UTC, datetime, timedelta
 from typing import Any
+from uuid import uuid4
 
 import jwt
 from pwdlib import PasswordHash
@@ -31,6 +32,7 @@ def create_access_token(subject: str) -> tuple[str, int]:
     now = datetime.now(UTC)
     claims: dict[str, Any] = {
         "sub": subject,
+        "jti": uuid4().hex,
         "iat": now,
         "exp": now + timedelta(seconds=expires_in),
         "iss": settings.token_issuer,
@@ -47,8 +49,10 @@ def decode_access_token(token: str) -> dict[str, Any]:
         settings.auth_secret_key,
         algorithms=["HS256"],
         issuer=settings.token_issuer,
-        options={"require": ["sub", "iat", "exp", "iss"]},
+        options={"require": ["sub", "jti", "iat", "exp", "iss"]},
     )
     if not isinstance(claims.get("sub"), str) or not claims["sub"].isdigit():
         raise jwt.InvalidTokenError("Invalid subject")
+    if not isinstance(claims.get("jti"), str) or not claims["jti"]:
+        raise jwt.InvalidTokenError("Invalid token identifier")
     return claims

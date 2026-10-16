@@ -6,6 +6,7 @@ from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 
 from app.core.security import decode_access_token
+from app.core.token_revocation import is_access_token_revoked
 from app.db.session import get_db
 from app.models.user import User
 
@@ -26,6 +27,9 @@ def get_current_user(
         claims = decode_access_token(token)
     except (jwt.InvalidTokenError, TypeError, ValueError):
         raise unauthorized from None
+
+    if is_access_token_revoked(claims["jti"]):
+        raise unauthorized
 
     user = db.get(User, int(claims["sub"]))
     if user is None or not user.is_active:

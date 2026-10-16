@@ -16,11 +16,19 @@ class FakeRedis:
 
     def __init__(self):
         self.counts = {}
+        self.values = {}
 
     def eval(self, script, key_count, key, window_seconds):
         count = self.counts.get(key, 0) + 1
         self.counts[key] = count
         return count, window_seconds
+
+    def exists(self, key):
+        return int(key in self.values)
+
+    def set(self, key, value, ex=None):
+        self.values[key] = value
+        return True
 
 
 @pytest.fixture(autouse=True)
