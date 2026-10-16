@@ -14,6 +14,7 @@ from app.db.session import get_db
 from app.models.challenge import Challenge
 from app.models.challenge_flag import ChallengeFlag
 from app.models.challenge_submission import ChallengeSubmission
+from app.services.audit import record_audit_event
 from app.models.competition import Competition
 from app.models.competition_round import CompetitionRound
 from app.models.membership import Membership
@@ -130,6 +131,20 @@ def submit_challenge_flag(
     )
     db.add(attempt)
     try:
+        db.flush()
+        record_audit_event(
+            db,
+            actor=user,
+            action="challenge.submission",
+            resource_type="challenge",
+            resource_id=challenge_id,
+            outcome="correct" if is_correct else "incorrect",
+            details={
+                "team_id": team.id,
+                "submission_id": attempt.id,
+                "points_awarded": attempt.points_awarded,
+            },
+        )
         db.commit()
     except IntegrityError:
         db.rollback()
