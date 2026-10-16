@@ -1,0 +1,26 @@
+### MEDUSA submission rate limiting
+# Use REST Client with a valid participant token and a challenge/team from the submissions walkthrough.
+# Run requests repeatedly. A successful response consumes the general per-user request budget.
+# Incorrect flags also consume the shared team+challenge incorrect-attempt budget.
+# After the configured limit, expect HTTP 429 and a Retry-After header.
+# If Redis is unavailable, submission requests fail closed with HTTP 503.
+# The defaults are 60 submission requests per user per 60 seconds and 10 incorrect
+# attempts per team/challenge per 60 seconds. Both are configurable via environment.
+
+@baseUrl = http://localhost:8000/api/v1
+@token = replace-with-participant-access-token
+@challengeId = 1
+@teamId = 1
+
+### Submit an incorrect flag repeatedly to test the incorrect-attempt limit
+POST {{baseUrl}}/challenges/{{challengeId}}/submissions
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "team_id": {{teamId}},
+  "flag": "MEDUSA{intentionally_wrong_flag}"
+}
+
+### General request limit: repeat the request above more than the configured
+# SUBMISSION_REQUEST_LIMIT within SUBMISSION_RATE_WINDOW_SECONDS.
