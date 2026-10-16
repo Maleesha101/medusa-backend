@@ -17,7 +17,7 @@ This is the minimum baseline for implementation; it is not a security certificat
 - Use generic login errors and deny inactive accounts.
 - Enforce authorization on every protected endpoint server-side; hiding UI controls is not authorization.
 - Use deny-by-default permissions and least-privilege service credentials.
-- Challenge submissions use shared Redis fixed-window limits: a general per-user request budget and a separate incorrect-attempt budget per team/challenge. Limits are configurable; over-limit responses include Retry-After. Redis failures fail closed with HTTP 503. Registration and token issuance still need dedicated rate limits before public launch.
+- Challenge submissions use shared Redis fixed-window limits: a general per-user request budget and a separate incorrect-attempt budget per team/challenge. Limits are configurable; over-limit responses include Retry-After. Redis failures fail closed with HTTP 503. Registration is limited per direct client IP; token issuance is limited both per direct client IP and per normalized account identifier (hashed before being used in Redis keys). These limits are configurable and include Retry-After. Forwarded IP headers must only be trusted when configured by a trusted reverse proxy. Email verification, password reset, MFA, refresh-token rotation/revocation, and account recovery are not yet implemented.
 - Email verification, password reset, MFA, refresh-token rotation/revocation, and account recovery are not yet implemented.
 
 ## API and input handling
