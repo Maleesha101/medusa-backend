@@ -4,8 +4,8 @@ import json
 import logging
 
 from redis import Redis
-from redis.exceptions import RedisError
 from redis.asyncio import Redis as AsyncRedis
+from redis.exceptions import RedisError
 
 from app.core.config import get_settings
 
