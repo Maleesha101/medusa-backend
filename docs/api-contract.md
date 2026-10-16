@@ -94,3 +94,12 @@ Tokens are signed using HS256, include issuer, subject, issued-at, and expiratio
 ## Audit events
 
 The API records challenge submission outcomes, challenge creation/metadata/status changes, and competition status transitions in the same database transaction as the corresponding action. Audit records contain actor identity/role when available, action, outcome, resource type/id, timestamp, and allowlisted metadata. Submitted flag values, flag hashes, passwords, bearer tokens, and arbitrary request bodies must never be recorded. The GET /api/v1/audit-events endpoint is restricted to users whose current database role is admin; results are newest-first and paginated with a maximum page size of 100. This is an application-level audit log, not tamper-proof external storage; production deployments should restrict database access and export logs to a separately controlled sink.
+
+
+## Real-time scoreboard updates
+
+| Protocol | Path | Purpose | Access |
+| --- | --- | --- | --- |
+| WebSocket | /api/v1/competitions/{competition_id}/scoreboard/ws | Receive scoreboard invalidation events | Public competition only; private, missing, or non-publicly-visible competitions are rejected |
+
+When a correct flag submission commits, the API publishes a `scoreboard.updated` event to a competition-scoped Redis Pub/Sub channel. The event contains the competition ID and submission ID only; it does not contain flags, team details, or the scoreboard itself. Clients should refetch `GET /api/v1/competitions/{competition_id}/scoreboard` after receiving an event. REST remains authoritative. Notifications are best-effort: if Redis is unavailable, a committed solve still succeeds, but connected clients may need to reconnect or refresh to recover current standings.
