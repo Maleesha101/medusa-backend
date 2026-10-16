@@ -1,5 +1,6 @@
 from sqlalchemy import select
 
+from app.models.audit_event import AuditEvent
 from app.models.challenge_flag import ChallengeFlag
 from app.models.challenge_submission import ChallengeSubmission
 from app.models.membership import Membership
@@ -195,6 +196,19 @@ def test_flag_lifecycle_and_submission_replay_protection(client, session_factory
     assert updated_challenge.status_code == 200
     unchanged_scoreboard = client.get(f"/api/v1/competitions/{competition_id}/scoreboard")
     assert unchanged_scoreboard.json()["entries"][0]["points"] == 200
+
+    with session_factory() as db:
+        submission_events = list(
+            db.scalars(
+                select(AuditEvent).where(AuditEvent.action == "challenge.submission")
+            ).all()
+        )
+        assert {event.outcome for event in submission_events} == {"correct", "incorrect"}
+        assert all(event.resource_type == "challenge" for event in submission_events)
+        assert all("flag" not in (event.details or {}) for event in submission_events)
+        assert any(event.action == "challenge.flag_configured" for event in db.scalars(
+            select(AuditEvent)
+        ).all())
 
 
 def test_cannot_publish_challenge_without_flag(client, session_factory):
