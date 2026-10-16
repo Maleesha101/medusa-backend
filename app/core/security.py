@@ -25,13 +25,14 @@ def verify_password(password: str, password_hash: str) -> bool:
         return False
 
 
-def create_access_token(subject: str) -> tuple[str, int]:
+def create_access_token(subject: str, auth_version: int = 0) -> tuple[str, int]:
     """Create a short-lived signed token; authorization is loaded from the database."""
     settings = get_settings()
     expires_in = settings.access_token_expire_minutes * 60
     now = datetime.now(UTC)
     claims: dict[str, Any] = {
         "sub": subject,
+        "ver": auth_version,
         "jti": uuid4().hex,
         "iat": now,
         "exp": now + timedelta(seconds=expires_in),
@@ -49,10 +50,12 @@ def decode_access_token(token: str) -> dict[str, Any]:
         settings.auth_secret_key,
         algorithms=["HS256"],
         issuer=settings.token_issuer,
-        options={"require": ["sub", "jti", "iat", "exp", "iss"]},
+        options={"require": ["sub", "ver", "jti", "iat", "exp", "iss"]},
     )
     if not isinstance(claims.get("sub"), str) or not claims["sub"].isdigit():
         raise jwt.InvalidTokenError("Invalid subject")
+    if not isinstance(claims.get("ver"), int) or claims["ver"] < 0:
+        raise jwt.InvalidTokenError("Invalid authentication version")
     if not isinstance(claims.get("jti"), str) or not claims["jti"]:
         raise jwt.InvalidTokenError("Invalid token identifier")
     return claims
