@@ -1,0 +1,68 @@
+### MEDUSA API — Persistent Audit Events
+### VS Code REST Client (.http)
+### Prerequisites:
+### - API running locally and Alembic migrations applied (alembic upgrade head).
+### - @adminEmail must belong to an existing account whose database role is "admin".
+### - @participantEmail must belong to an existing participant account.
+### - Run requests in order. Run the submission/challenge .http workflow first to generate events.
+
+@baseUrl = http://localhost:8000/api/v1
+@adminEmail = admin@example.com
+@participantEmail = user2@example.com
+@password = stringstring
+@actorUserId = 1
+
+### 1. Login as platform admin
+# @name auditAdminLogin
+POST {{baseUrl}}/auth/token
+Content-Type: application/x-www-form-urlencoded
+
+username={{adminEmail}}&password={{password}}
+
+### 2. List the latest audit events (expected 200)
+# @name listAuditEvents
+GET {{baseUrl}}/audit-events
+Authorization: Bearer {{auditAdminLogin.response.body.access_token}}
+
+### 3. Filter challenge submission outcomes (expected 200)
+# Includes incorrect/correct submission events, if those actions have been performed.
+GET {{baseUrl}}/audit-events?action=challenge.submission&limit=50&offset=0
+Authorization: Bearer {{auditAdminLogin.response.body.access_token}}
+
+### 4. Filter challenge metadata updates (expected 200)
+GET {{baseUrl}}/audit-events?action=challenge.updated&resource_type=challenge&limit=50
+Authorization: Bearer {{auditAdminLogin.response.body.access_token}}
+
+### 5. Filter competition status changes (expected 200)
+GET {{baseUrl}}/audit-events?action=competition.status_changed&resource_type=competition
+Authorization: Bearer {{auditAdminLogin.response.body.access_token}}
+
+### 6. Filter by actor user ID (replace @actorUserId with a real users.id)
+GET {{baseUrl}}/audit-events?actor_user_id={{actorUserId}}&limit=20
+Authorization: Bearer {{auditAdminLogin.response.body.access_token}}
+
+### 7. Test pagination (expected 200; maximum limit is 100)
+GET {{baseUrl}}/audit-events?limit=10&offset=0
+Authorization: Bearer {{auditAdminLogin.response.body.access_token}}
+
+### 8. Test unauthenticated access (expected 401)
+GET {{baseUrl}}/audit-events
+
+### 9. Login as a participant
+# @name auditParticipantLogin
+POST {{baseUrl}}/auth/token
+Content-Type: application/x-www-form-urlencoded
+
+username={{participantEmail}}&password={{password}}
+
+### 10. Test participant cannot read audit events (expected 403)
+GET {{baseUrl}}/audit-events
+Authorization: Bearer {{auditParticipantLogin.response.body.access_token}}
+
+### Expected results / security checks
+# - Requests 2–7: HTTP 200 and a JSON array (possibly empty if no matching events exist).
+# - Request 8: HTTP 401.
+# - Request 10: HTTP 403.
+# - Submission events should contain action/outcome/resource metadata, not submitted flag values,
+#   passwords, bearer tokens, or flag hashes.
+# - To test event generation, run requests/medusa-submissions.http and then rerun requests 2–5.

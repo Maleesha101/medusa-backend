@@ -24,6 +24,7 @@ from app.schemas.submissions import (
     ChallengeSubmissionCreate,
     ChallengeSubmissionResult,
 )
+from app.services.audit import record_audit_event
 
 router = APIRouter(tags=["submissions"])
 
@@ -61,6 +62,13 @@ def set_challenge_flag(
     else:
         stored_flag.flag_hash = _flag_digest(payload.flag)
 
+    record_audit_event(
+        db,
+        actor=_user,
+        action="challenge.flag_configured",
+        resource_type="challenge",
+        resource_id=challenge_id,
+    )
     db.commit()
     return None
 
@@ -130,6 +138,20 @@ def submit_challenge_flag(
     )
     db.add(attempt)
     try:
+        db.flush()
+        record_audit_event(
+            db,
+            actor=user,
+            action="challenge.submission",
+            resource_type="challenge",
+            resource_id=challenge_id,
+            outcome="correct" if is_correct else "incorrect",
+            details={
+                "team_id": team.id,
+                "submission_id": attempt.id,
+                "points_awarded": attempt.points_awarded,
+            },
+        )
         db.commit()
     except IntegrityError:
         db.rollback()
