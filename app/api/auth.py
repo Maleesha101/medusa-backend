@@ -2,16 +2,22 @@
 
 import hashlib
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.api.dependencies import get_current_user
+from app.api.dependencies import get_current_user, oauth2_scheme
 from app.core.config import get_settings
 from app.core.rate_limit import consume_rate_limit
-from app.core.security import create_access_token, hash_password, verify_password
+from app.core.security import (
+    create_access_token,
+    decode_access_token,
+    hash_password,
+    verify_password,
+)
+from app.core.token_revocation import revoke_access_token
 from app.db.session import get_db
 from app.models.user import User
 from app.schemas.auth import TokenResponse, UserPublic, UserRegister
@@ -105,3 +111,15 @@ def issue_token(
 def read_current_user(user: User = Depends(get_current_user)) -> User:
     """Return only the safe profile of the authenticated user."""
     return user
+
+
+
+@router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
+def logout(
+    token: str = Depends(oauth2_scheme),
+    user: User = Depends(get_current_user),
+) -> Response:
+    """Revoke the presented bearer token until its natural expiration."""
+    claims = decode_access_token(token)
+    revoke_access_token(claims["jti"], int(claims["exp"]))
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
