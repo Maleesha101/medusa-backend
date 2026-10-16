@@ -270,7 +270,6 @@ def test_flag_endpoint_rejects_participant(client, session_factory):
     assert response.status_code == 403
 
 
-
 def test_incorrect_submission_limit_is_shared_by_team_and_challenge(client, session_factory):
     _, challenge_id, team_id, headers, _ = _prepare_active_challenge(client, session_factory)
 
