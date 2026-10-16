@@ -11,6 +11,7 @@ from app.models.competition import Competition
 from app.models.competition_round import CompetitionRound
 from app.models.organization import Organization
 from app.models.user import User
+from app.services.audit import record_audit_event
 from app.schemas.competitions import (
     CompetitionCreate,
     CompetitionPublic,
@@ -120,7 +121,16 @@ def update_competition_status(
                 f"Invalid competition status transition: {competition.status} -> {payload.status}"
             ),
         )
+    previous_status = competition.status
     competition.status = payload.status
+    record_audit_event(
+        db,
+        actor=_user,
+        action="competition.status_changed",
+        resource_type="competition",
+        resource_id=competition.id,
+        details={"from": previous_status, "to": competition.status},
+    )
     db.commit()
     db.refresh(competition)
     return competition
