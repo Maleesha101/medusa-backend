@@ -12,6 +12,7 @@ from app.models.challenge_flag import ChallengeFlag
 from app.models.competition import Competition
 from app.models.competition_round import CompetitionRound
 from app.models.user import User
+from app.services.audit import record_audit_event
 from app.schemas.challenges import (
     ChallengeCreate,
     ChallengePublic,
@@ -117,6 +118,15 @@ def create_challenge(
     )
     db.add(challenge)
     try:
+        db.flush()
+        record_audit_event(
+            db,
+            actor=_user,
+            action="challenge.created",
+            resource_type="challenge",
+            resource_id=challenge.id,
+            details={"round_id": round_id, "points": challenge.points},
+        )
         db.commit()
     except IntegrityError:
         db.rollback()
@@ -142,9 +152,25 @@ def update_challenge(
     changes = payload.model_dump(exclude_unset=True)
     if not changes or any(value is None for value in changes.values()):
         raise HTTPException(status_code=422, detail="Provide non-null fields to update")
+    old_points = challenge.points
     for field, value in changes.items():
         setattr(challenge, field, value.strip() if field in {"name", "category"} else value)
     try:
+        record_audit_event(
+            db,
+            actor=_user,
+            action="challenge.updated",
+            resource_type="challenge",
+            resource_id=challenge.id,
+            details={
+                "changed_fields": sorted(changes),
+                **(
+                    {"points_before": old_points, "points_after": challenge.points}
+                    if "points" in changes
+                    else {}
+                ),
+            },
+        )
         db.commit()
     except IntegrityError:
         db.rollback()
@@ -175,7 +201,16 @@ def update_challenge_status(
             status_code=409,
             detail="Configure a challenge flag before publishing",
         )
+    previous_status = challenge.status
     challenge.status = payload.status
+    record_audit_event(
+        db,
+        actor=_user,
+        action="challenge.status_changed",
+        resource_type="challenge",
+        resource_id=challenge.id,
+        details={"from": previous_status, "to": challenge.status},
+    )
     db.commit()
     db.refresh(challenge)
     return challenge
