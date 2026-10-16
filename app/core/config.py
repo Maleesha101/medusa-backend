@@ -18,6 +18,11 @@ class Settings(BaseSettings):
     submission_request_limit: int = Field(default=60, ge=1, le=10000)
     incorrect_submission_limit: int = Field(default=10, ge=1, le=10000)
     submission_rate_window_seconds: int = Field(default=60, ge=1, le=86400)
+    registration_request_limit: int = Field(default=5, ge=1, le=1000)
+    registration_rate_window_seconds: int = Field(default=600, ge=1, le=86400)
+    token_request_limit_per_ip: int = Field(default=20, ge=1, le=10000)
+    token_request_limit_per_account: int = Field(default=5, ge=1, le=1000)
+    token_rate_window_seconds: int = Field(default=60, ge=1, le=86400)
     auth_secret_key: str = _DEVELOPMENT_SECRET
     access_token_expire_minutes: int = Field(default=15, ge=1, le=60)
     token_issuer: str = "medusa-backend"
