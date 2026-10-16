@@ -199,9 +199,7 @@ def test_flag_lifecycle_and_submission_replay_protection(client, session_factory
 
     with session_factory() as db:
         submission_events = list(
-            db.scalars(
-                select(AuditEvent).where(AuditEvent.action == "challenge.submission")
-            ).all()
+            db.scalars(select(AuditEvent).where(AuditEvent.action == "challenge.submission")).all()
         )
         assert {event.outcome for event in submission_events} == {"correct", "incorrect"}
         assert all(event.resource_type == "challenge" for event in submission_events)
