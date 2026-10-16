@@ -41,9 +41,7 @@ def upgrade() -> None:
     )
     op.create_index("ix_audit_events_actor_user_id", "audit_events", ["actor_user_id"])
     op.create_index("ix_audit_events_created_at", "audit_events", ["created_at"])
-    op.create_index(
-        "ix_audit_events_action_created_at", "audit_events", ["action", "created_at"]
-    )
+    op.create_index("ix_audit_events_action_created_at", "audit_events", ["action", "created_at"])
     op.create_index("ix_audit_events_resource", "audit_events", ["resource_type", "resource_id"])
     op.create_index(
         "ix_audit_events_actor_created_at", "audit_events", ["actor_user_id", "created_at"]
