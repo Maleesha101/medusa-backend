@@ -7,7 +7,6 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from redis.exceptions import RedisError
 from sqlalchemy.orm import Session
 
-from app.core.config import get_settings
 from app.db.session import SessionLocal
 from app.models.competition import Competition
 from app.services.scoreboard_events import (
