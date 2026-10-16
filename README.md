@@ -20,7 +20,7 @@ MEDUSA uses a **modular monolith** initially. Domain boundaries are explicit, bu
 ## Implemented endpoints
 
 - GET /api/v1/live and GET /api/v1/ready — health probes
-- POST /api/v1/auth/register, POST /api/v1/auth/token, GET /api/v1/auth/me — identity and authentication
+- POST /api/v1/auth/register, POST /api/v1/auth/token, GET /api/v1/auth/me, POST /api/v1/auth/logout — identity, authentication, and access-token revocation
 - GET/POST /api/v1/organizations — list and create organizations
 - GET /api/v1/organizations/{organization_id} — get an organization
 - GET/POST /api/v1/organizations/{organization_id}/teams — list and create teams
