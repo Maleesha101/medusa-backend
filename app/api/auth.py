@@ -113,7 +113,6 @@ def read_current_user(user: User = Depends(get_current_user)) -> User:
     return user
 
 
-
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
 def logout(
     token: str = Depends(oauth2_scheme),
