@@ -50,10 +50,14 @@ def decode_access_token(token: str) -> dict[str, Any]:
         settings.auth_secret_key,
         algorithms=["HS256"],
         issuer=settings.token_issuer,
-        options={"require": ["sub", "ver", "jti", "iat", "exp", "iss"]},
+        options={"require": ["sub", "jti", "iat", "exp", "iss"]},
     )
     if not isinstance(claims.get("sub"), str) or not claims["sub"].isdigit():
         raise jwt.InvalidTokenError("Invalid subject")
+    # Tokens issued before auth-version support remain valid at version zero.
+    # Once a password reset increments the stored version, those tokens fail.
+    if "ver" not in claims:
+        claims["ver"] = 0
     if not isinstance(claims.get("ver"), int) or claims["ver"] < 0:
         raise jwt.InvalidTokenError("Invalid authentication version")
     if not isinstance(claims.get("jti"), str) or not claims["jti"]:
