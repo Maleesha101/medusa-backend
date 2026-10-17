@@ -20,7 +20,7 @@ MEDUSA uses a **modular monolith** initially. Domain boundaries are explicit, bu
 ## Implemented endpoints
 
 - GET /api/v1/live and GET /api/v1/ready — health probes
-- POST /api/v1/auth/register, POST /api/v1/auth/token, GET /api/v1/auth/me, POST /api/v1/auth/logout — identity, authentication, and access-token revocation
+- POST /api/v1/auth/register, POST /api/v1/auth/token, GET /api/v1/auth/me, POST /api/v1/auth/logout, POST /api/v1/auth/password-reset/request, POST /api/v1/auth/password-reset/confirm — identity, authentication, logout, and password recovery
 - GET/POST /api/v1/organizations — list and create organizations
 - GET /api/v1/organizations/{organization_id} — get an organization
 - GET/POST /api/v1/organizations/{organization_id}/teams — list and create teams
@@ -59,7 +59,7 @@ Organization and competition creation and lifecycle changes require an organizer
 4. Open the interactive API documentation at http://localhost:8000/docs.
 5. Use requests/medusa-submissions.http for a local end-to-end flag submission walkthrough. Run its named requests in order and replace example credentials/IDs as needed.
 
-The Compose database password and signing key are development-only values. Replace both through deployment secrets before any non-local deployment. Do not commit .env or real credentials.
+Password recovery requires SMTP settings (`SMTP_HOST`, `SMTP_FROM_EMAIL`, and related credentials) to deliver reset links. Reset tokens are never returned by the API. The Compose database password and signing key are development-only values. Replace both through deployment secrets before any non-local deployment. Do not commit .env or real credentials.
 
 ## Running tests
 

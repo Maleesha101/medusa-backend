@@ -32,7 +32,7 @@ def get_current_user(
         raise unauthorized
 
     user = db.get(User, int(claims["sub"]))
-    if user is None or not user.is_active:
+    if user is None or not user.is_active or claims["ver"] != user.auth_version:
         raise unauthorized
     return user
 

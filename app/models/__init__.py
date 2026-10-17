@@ -9,6 +9,7 @@ from app.models.competition import Competition
 from app.models.competition_round import CompetitionRound
 from app.models.membership import Membership
 from app.models.organization import Organization
+from app.models.password_reset_token import PasswordResetToken
 from app.models.team import Team
 from app.models.user import User
 
@@ -22,6 +23,7 @@ __all__ = [
     "CompetitionRound",
     "Membership",
     "Organization",
+    "PasswordResetToken",
     "Team",
     "User",
 ]
