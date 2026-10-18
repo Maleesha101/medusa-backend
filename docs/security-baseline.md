@@ -43,6 +43,7 @@ This is the minimum baseline for implementation; it is not a security certificat
 - Keep challenge execution outside the API process and isolate it with network policies, resource limits, and lifecycle cleanup.
 - Never mount host Docker sockets into participant-controlled workloads.
 - Do not expose management APIs or internal metadata services to challenge containers.
+- The current sandbox-controller implementation is an interface plus a provider-unavailable default that fails closed. It intentionally does not start containers or expose participant-facing lifecycle endpoints. Do not enable arbitrary images or execution until an isolated provider enforces immutable image references, CPU/memory/process limits, network egress policy, timeouts, and cleanup.
 
 ## Delivery requirements
 - Add tests for authorization boundaries and malformed inputs as features are implemented.
