@@ -87,26 +87,32 @@ def request_sandbox(
     if challenge_context is None:
         raise SandboxChallengeUnavailable("Challenge is not eligible for a sandbox")
 
-    owner_active_count = db.scalar(
-        select(func.count(SandboxInstance.id)).where(
-            SandboxInstance.owner_user_id == actor.id,
-            SandboxInstance.state.in_(ACTIVE_STATES),
-            SandboxInstance.expires_at > current_time,
+    owner_active_count = (
+        db.scalar(
+            select(func.count(SandboxInstance.id)).where(
+                SandboxInstance.owner_user_id == actor.id,
+                SandboxInstance.state.in_(ACTIVE_STATES),
+                SandboxInstance.expires_at > current_time,
+            )
         )
-    ) or 0
+        or 0
+    )
     if owner_active_count >= policy.max_active_per_owner:
         raise SandboxQuotaExceeded("Owner sandbox limit reached")
 
-    competition_active_count = db.scalar(
-        select(func.count(SandboxInstance.id))
-        .join(Challenge, SandboxInstance.challenge_id == Challenge.id)
-        .join(CompetitionRound, Challenge.round_id == CompetitionRound.id)
-        .where(
-            CompetitionRound.competition_id == challenge_context.competition_id,
-            SandboxInstance.state.in_(ACTIVE_STATES),
-            SandboxInstance.expires_at > current_time,
+    competition_active_count = (
+        db.scalar(
+            select(func.count(SandboxInstance.id))
+            .join(Challenge, SandboxInstance.challenge_id == Challenge.id)
+            .join(CompetitionRound, Challenge.round_id == CompetitionRound.id)
+            .where(
+                CompetitionRound.competition_id == challenge_context.competition_id,
+                SandboxInstance.state.in_(ACTIVE_STATES),
+                SandboxInstance.expires_at > current_time,
+            )
         )
-    ) or 0
+        or 0
+    )
     if competition_active_count >= policy.max_active_per_competition:
         raise SandboxQuotaExceeded("Competition sandbox limit reached")
 
