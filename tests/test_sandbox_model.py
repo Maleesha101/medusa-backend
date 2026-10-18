@@ -1,3 +1,5 @@
+from datetime import UTC, datetime
+
 import pytest
 from sqlalchemy.exc import IntegrityError
 
@@ -10,7 +12,7 @@ def test_sandbox_state_check_constraint(session_factory) -> None:
             challenge_id=999,
             owner_user_id=999,
             state="arbitrary",
-            expires_at=__import__("datetime").datetime.now(__import__("datetime").UTC),
+            expires_at=datetime.now(UTC),
         )
         db.add(instance)
         with pytest.raises(IntegrityError):
