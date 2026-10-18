@@ -57,6 +57,17 @@ ALLOWED_TRANSITIONS = {
 }
 
 
+def _as_utc(value: datetime) -> datetime:
+    """Normalize timestamps for comparisons across DB drivers.
+
+    SQLite may return naive datetimes for columns declared timezone-aware; treat
+    those stored values as UTC, matching the timestamps written by this service.
+    """
+    if value.tzinfo is None:
+        return value.replace(tzinfo=UTC)
+    return value.astimezone(UTC)
+
+
 def request_sandbox(
     db: Session,
     *,
@@ -163,8 +174,10 @@ def transition_sandbox(
         raise SandboxConflict(f"Cannot transition sandbox from {previous_state} to {target_state}")
 
     current_time = now or datetime.now(UTC)
+    if current_time.tzinfo is None:
+        raise SandboxConflict("Sandbox timestamps must include a timezone")
     if target_state == "running":
-        if sandbox.expires_at <= current_time:
+        if _as_utc(sandbox.expires_at) <= _as_utc(current_time):
             raise SandboxConflict("Expired sandbox cannot be started")
         if not provider_instance_id:
             raise SandboxConflict("A provider instance ID is required when starting")
