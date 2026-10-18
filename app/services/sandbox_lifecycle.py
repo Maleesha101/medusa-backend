@@ -10,7 +10,6 @@ from datetime import UTC, datetime, timedelta
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.models.audit_event import AuditEvent
 from app.models.challenge import Challenge
 from app.models.competition import Competition
 from app.models.competition_round import CompetitionRound
@@ -148,15 +147,14 @@ def transition_sandbox(
     never be populated directly from public request bodies.
     """
     sandbox = db.scalar(
-        select(SandboxInstance)
-        .where(SandboxInstance.id == sandbox_id)
-        .with_for_update()
+        select(SandboxInstance).where(SandboxInstance.id == sandbox_id).with_for_update()
     )
     if sandbox is None or (sandbox.owner_user_id != actor.id and actor.role != "admin"):
         raise SandboxNotFound("Sandbox not found")
 
-    if target_state not in ALLOWED_TRANSITIONS.get(sandbox.state, frozenset()):
-        raise SandboxConflict(f"Cannot transition sandbox from {sandbox.state} to {target_state}")
+    previous_state = sandbox.state
+    if target_state not in ALLOWED_TRANSITIONS.get(previous_state, frozenset()):
+        raise SandboxConflict(f"Cannot transition sandbox from {previous_state} to {target_state}")
 
     current_time = now or datetime.now(UTC)
     if target_state == "running":
@@ -178,10 +176,7 @@ def transition_sandbox(
         action=f"sandbox.{target_state}",
         resource_type="sandbox_instance",
         resource_id=sandbox.id,
-        details={"previous_state": next(
-            (state for state, targets in ALLOWED_TRANSITIONS.items() if sandbox.state in targets),
-            "unknown",
-        ), "state": target_state},
+        details={"previous_state": previous_state, "state": target_state},
     )
     db.commit()
     db.refresh(sandbox)
