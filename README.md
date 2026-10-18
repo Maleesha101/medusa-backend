@@ -4,7 +4,7 @@ The backend platform for **MEDUSA** — a modular, security-first CTF and compet
 
 ## Project status
 
-The repository contains the application foundation, identity/authentication, organization/team membership APIs, competition/round management, challenge authoring/catalog, challenge submission and flag validation, and initial scoring and public scoreboard endpoints. It is not yet production-ready. Persistent audit events, distributed submission rate limiting, and Redis-backed scoreboard update notifications are implemented; sandbox APIs and production hardening remain future work.
+The repository contains the application foundation, identity/authentication, organization/team membership APIs, competition/round management, challenge authoring/catalog, challenge submission and flag validation, and initial scoring and public scoreboard endpoints. It is not yet production-ready. Persistent audit events, distributed submission rate limiting, and Redis-backed scoreboard update notifications are implemented. Sandbox infrastructure work is in progress: this phase introduces lifecycle metadata and a fail-closed provider boundary, not participant-facing sandbox APIs or a runnable container provider.
 
 ## Architecture direction
 
@@ -81,7 +81,7 @@ ruff format --check .
 3. **Organization/team foundation:** organizations, teams, membership, and access control.
 4. **Competition/round foundation:** competition metadata, lifecycle transitions, schedules, and ordered rounds.
 5. **CTF engine:** challenge authoring/catalog, flag submission/validation, immutable solve-time point awards, public scoreboards, persistent audit events, and Redis-backed submission rate limits are implemented.
-6. **Infrastructure integration:** ephemeral challenge instances, sandbox controller, resource limits, and isolation.
+6. **Infrastructure integration:** in progress. Sandbox lifecycle metadata and a fail-closed controller contract are being introduced before any runtime provider or participant-facing API is enabled.
 7. **Realtime and SOC:** public scoreboard WebSocket notifications are implemented; alerts, broader operational visibility, and integrations remain future work.
 8. **Hardening and scale:** threat modeling, registration/token rate limits, load testing, observability, backups, and deployment security.
 
