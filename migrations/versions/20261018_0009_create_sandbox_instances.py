@@ -48,11 +48,26 @@ def upgrade() -> None:
             "state IN ('pending', 'running', 'stopped', 'failed', 'expired')",
             name="ck_sandbox_instances_state",
         ),
-        sa.UniqueConstraint("provider_instance_id", name="uq_sandbox_instances_provider_instance_id"),
+        sa.UniqueConstraint(
+            "provider_instance_id",
+            name="uq_sandbox_instances_provider_instance_id",
+        ),
     )
-    op.create_index("ix_sandbox_instances_challenge_id", "sandbox_instances", ["challenge_id"])
-    op.create_index("ix_sandbox_instances_owner_user_id", "sandbox_instances", ["owner_user_id"])
-    op.create_index("ix_sandbox_instances_state_expires_at", "sandbox_instances", ["state", "expires_at"])
+    op.create_index(
+        "ix_sandbox_instances_challenge_id",
+        "sandbox_instances",
+        ["challenge_id"],
+    )
+    op.create_index(
+        "ix_sandbox_instances_owner_user_id",
+        "sandbox_instances",
+        ["owner_user_id"],
+    )
+    op.create_index(
+        "ix_sandbox_instances_state_expires_at",
+        "sandbox_instances",
+        ["state", "expires_at"],
+    )
 
 
 def downgrade() -> None:
