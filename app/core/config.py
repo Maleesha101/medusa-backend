@@ -38,6 +38,9 @@ class Settings(BaseSettings):
     auth_secret_key: str = _DEVELOPMENT_SECRET
     access_token_expire_minutes: int = Field(default=15, ge=1, le=60)
     token_issuer: str = "medusa-backend"
+    sandbox_max_active_per_owner: int = Field(default=2, ge=1, le=100)
+    sandbox_max_active_per_competition: int = Field(default=20, ge=1, le=10000)
+    sandbox_max_lifetime_minutes: int = Field(default=120, ge=5, le=720)
 
     model_config = SettingsConfigDict(
         env_file=".env",
