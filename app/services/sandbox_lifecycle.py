@@ -10,11 +10,11 @@ from datetime import UTC, datetime, timedelta
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.core.config import get_settings
 from app.models.challenge import Challenge
 from app.models.competition import Competition
 from app.models.competition_round import CompetitionRound
 from app.models.sandbox_instance import SandboxInstance
-from app.core.config import get_settings
 from app.models.user import User
 from app.services.audit import record_audit_event
 
