@@ -91,3 +91,61 @@ def test_cleanup_failure_remains_retryable(session_factory) -> None:
 def test_cleanup_validates_batch_size(session_factory) -> None:
     with session_factory() as db, pytest.raises(ValueError):
         reconcile_provider_cleanup(db, batch_size=0)
+
+
+def test_cleanup_failure_sets_backoff_and_is_not_retried_early(session_factory) -> None:
+    controller = RecordingController(fail=True)
+    now = datetime(2026, 10, 19, 12, 0, tzinfo=UTC)
+    with session_factory() as db:
+        owner = User(
+            email="cleanup-backoff-owner@example.test",
+            password_hash="not-a-real-hash",
+            role="participant",
+        )
+        db.add(owner)
+        db.flush()
+        sandbox_id = _make_terminal_sandbox(db, owner, "provider-cleanup-backoff")
+
+    with session_factory() as db:
+        result = reconcile_provider_cleanup(db, controller=controller, now=now)
+        assert result == {"processed": 1, "cleaned": 0, "failed": 1}
+
+    with session_factory() as db:
+        sandbox = db.get(SandboxInstance, sandbox_id)
+        retry_at = sandbox.cleanup_next_attempt_at
+        assert retry_at is not None
+        if retry_at.tzinfo is None:
+            retry_at = retry_at.replace(tzinfo=UTC)
+        else:
+            retry_at = retry_at.astimezone(UTC)
+        assert retry_at == now + timedelta(seconds=30)
+
+    with session_factory() as db:
+        result = reconcile_provider_cleanup(
+            db,
+            controller=controller,
+            now=now + timedelta(seconds=29),
+        )
+        assert result == {"processed": 0, "cleaned": 0, "failed": 0}
+
+    with session_factory() as db:
+        result = reconcile_provider_cleanup(
+            db,
+            controller=controller,
+            now=now + timedelta(seconds=30),
+        )
+        assert result == {"processed": 1, "cleaned": 0, "failed": 1}
+
+    assert controller.stopped == [
+        "provider-cleanup-backoff",
+        "provider-cleanup-backoff",
+    ]
+
+
+def test_cleanup_rejects_invalid_backoff_bounds(session_factory) -> None:
+    with session_factory() as db, pytest.raises(ValueError):
+        reconcile_provider_cleanup(
+            db,
+            base_backoff_seconds=60,
+            max_backoff_seconds=30,
+        )

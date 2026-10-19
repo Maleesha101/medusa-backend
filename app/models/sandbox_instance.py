@@ -2,7 +2,7 @@
 
 from datetime import datetime
 
-from sqlalchemy import CheckConstraint, DateTime, ForeignKey, String, func
+from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Integer, String, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
@@ -31,7 +31,8 @@ class SandboxInstance(Base):
     provider_instance_id: Mapped[str | None] = mapped_column(String(255), unique=True)
     failure_code: Mapped[str | None] = mapped_column(String(64))
     cleanup_status: Mapped[str] = mapped_column(String(16), nullable=False, default="not_required")
-    cleanup_attempts: Mapped[int] = mapped_column(nullable=False, default=0)
+    cleanup_attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    cleanup_next_attempt_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     cleanup_error_code: Mapped[str | None] = mapped_column(String(64))
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

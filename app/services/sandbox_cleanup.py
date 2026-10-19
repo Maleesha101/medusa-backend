@@ -1,5 +1,7 @@
 """Retryable provider cleanup for terminal sandbox records."""
 
+from datetime import UTC, datetime, timedelta
+
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -19,6 +21,9 @@ def reconcile_provider_cleanup(
     *,
     controller: SandboxController | None = None,
     batch_size: int = 50,
+    now: datetime | None = None,
+    base_backoff_seconds: int = 30,
+    max_backoff_seconds: int = 3600,
 ) -> dict[str, int]:
     """Attempt cleanup for a bounded batch of terminal instances.
 
@@ -29,6 +34,13 @@ def reconcile_provider_cleanup(
     if not 1 <= batch_size <= 500:
         raise ValueError("batch_size must be between 1 and 500")
 
+    if base_backoff_seconds < 1 or max_backoff_seconds < base_backoff_seconds:
+        raise ValueError("Invalid cleanup backoff bounds")
+
+    current_time = now or datetime.now(UTC)
+    if current_time.tzinfo is None:
+        raise ValueError("now must be timezone-aware")
+
     provider = controller or UnavailableSandboxController()
     sandboxes = list(
         db.scalars(
@@ -37,6 +49,8 @@ def reconcile_provider_cleanup(
                 SandboxInstance.state.in_(CLEANUP_ELIGIBLE_STATES),
                 SandboxInstance.provider_instance_id.is_not(None),
                 SandboxInstance.cleanup_status.in_(("pending", "failed")),
+                (SandboxInstance.cleanup_next_attempt_at.is_(None))
+                | (SandboxInstance.cleanup_next_attempt_at <= current_time),
             )
             .order_by(SandboxInstance.id)
             .limit(batch_size)
@@ -53,11 +67,17 @@ def reconcile_provider_cleanup(
         except SandboxControllerError:
             sandbox.cleanup_status = "failed"
             sandbox.cleanup_error_code = "provider_cleanup_failed"
+            delay = min(
+                base_backoff_seconds * (2 ** min(sandbox.cleanup_attempts - 1, 20)),
+                max_backoff_seconds,
+            )
+            sandbox.cleanup_next_attempt_at = current_time + timedelta(seconds=delay)
             failed += 1
             outcome = "failure"
         else:
             sandbox.cleanup_status = "cleaned"
             sandbox.cleanup_error_code = None
+            sandbox.cleanup_next_attempt_at = None
             cleaned += 1
             outcome = "success"
 
@@ -72,6 +92,11 @@ def reconcile_provider_cleanup(
                 "state": sandbox.state,
                 "cleanup_status": sandbox.cleanup_status,
                 "attempt": sandbox.cleanup_attempts,
+                "next_attempt_at": (
+                    sandbox.cleanup_next_attempt_at.isoformat()
+                    if sandbox.cleanup_next_attempt_at is not None
+                    else None
+                ),
             },
         )
 
