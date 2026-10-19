@@ -77,7 +77,12 @@ def request_sandbox(
     policy: SandboxPolicy = SandboxPolicy(),
     now: datetime | None = None,
 ) -> SandboxInstance:
-    """Create a pending record after challenge eligibility and quota checks."""
+    """Create a pending record after eligibility and serialized quota checks.
+
+    On PostgreSQL, locking the owner and competition rows serializes concurrent
+    requests that share either quota. All sandbox creation paths must use this
+    service for the guarantee to hold.
+    """
     current_time = now or datetime.now(UTC)
     if expires_at.tzinfo is None or current_time.tzinfo is None:
         raise SandboxConflict("Sandbox timestamps must include a timezone")
@@ -96,6 +101,18 @@ def request_sandbox(
         )
     ).one_or_none()
     if challenge_context is None:
+        raise SandboxChallengeUnavailable("Challenge is not eligible for a sandbox")
+
+    # Serialize quota checks for this owner and competition. Acquire locks in a
+    # fixed order to avoid deadlocks when requests share either resource. These
+    # row locks are effective on PostgreSQL; SQLite ignores FOR UPDATE.
+    owner_lock = db.scalar(select(User.id).where(User.id == actor.id).with_for_update())
+    competition_lock = db.scalar(
+        select(Competition.id)
+        .where(Competition.id == challenge_context.competition_id)
+        .with_for_update()
+    )
+    if owner_lock is None or competition_lock is None:
         raise SandboxChallengeUnavailable("Challenge is not eligible for a sandbox")
 
     owner_active_count = (
