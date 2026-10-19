@@ -75,7 +75,7 @@ def request_sandbox(
     actor: User,
     challenge_id: int,
     expires_at: datetime,
-    policy: SandboxPolicy = SandboxPolicy(),
+    policy: SandboxPolicy | None = None,
     now: datetime | None = None,
 ) -> SandboxInstance:
     """Create a pending record after eligibility and serialized quota checks.
