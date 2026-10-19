@@ -226,7 +226,6 @@ def transition_sandbox(
     db.refresh(sandbox)
     return sandbox
 
- 
 
 def expire_due_sandboxes(
     db: Session,
