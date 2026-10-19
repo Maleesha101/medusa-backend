@@ -8,6 +8,8 @@ This increment adds database-backed lifecycle policy only. It does not launch or
 
 A sandbox request is accepted only for a published challenge in a public, active competition. The requested expiry must be timezone-aware, in the future, and no more than two hours from the request time. Defaults allow at most two active (pending/running, unexpired) instances per owner and twenty per competition. These are conservative initial policy defaults, not yet environment-configurable.
 
+Before counting active records, the service locks the owner and competition rows in a fixed order. On PostgreSQL, this serializes quota checks for concurrent requests that share an owner or competition, preventing both requests from observing the same available slot. SQLite ignores `FOR UPDATE`, so its test database does not validate this concurrency guarantee. All sandbox creation paths must use this service; bypassing it bypasses the quota protection.
+
 The service creates a `pending` metadata record and records a `sandbox.requested` audit event in the same transaction. Runtime launch is deliberately a separate trusted operation.
 
 ## Allowed transitions
@@ -20,4 +22,4 @@ A transition requires the owner or an admin. Missing and unauthorized instances 
 
 ## Operational limitations
 
-The current quota check is an application-level count and does not yet provide a database-backed reservation lock for concurrent requests. Before exposing a public create endpoint or enabling real provider launches, add concurrency-safe quota reservation, settings-based quotas, an expiry worker/reconciliation strategy, and provider cleanup semantics. The API must not allow clients to submit provider IDs or directly choose lifecycle states.
+Quota values remain conservative code defaults and should be moved to validated deployment settings before public launch. An expiry worker/reconciliation strategy and provider cleanup semantics are also still required before enabling real provider launches. The API must not allow clients to submit provider IDs or directly choose lifecycle states.
