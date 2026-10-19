@@ -121,7 +121,6 @@ def test_sandbox_policy_defaults_are_conservative() -> None:
     assert policy.max_lifetime == timedelta(hours=2)
 
 
-
 def test_expiry_reconciliation_expires_due_sandboxes(session_factory) -> None:
     from app.services.sandbox_lifecycle import expire_due_sandboxes
 
