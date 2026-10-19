@@ -6,7 +6,7 @@ This increment adds database-backed lifecycle policy only. It does not launch or
 
 ## Request policy
 
-A sandbox request is accepted only for a published challenge in a public, active competition. The requested expiry must be timezone-aware, in the future, and no more than two hours from the request time. Defaults allow at most two active (pending/running, unexpired) instances per owner and twenty per competition. These are conservative initial policy defaults, not yet environment-configurable.
+A sandbox request is accepted only for a published challenge in a public, active competition. The requested expiry must be timezone-aware, in the future, and no more than two hours from the request time. Defaults allow at most two active (pending/running, unexpired) instances per owner and twenty per competition, with a maximum lifetime of two hours. Deployments can override these values with `SANDBOX_MAX_ACTIVE_PER_OWNER`, `SANDBOX_MAX_ACTIVE_PER_COMPETITION`, and `SANDBOX_MAX_LIFETIME_MINUTES`. Values are validated at startup: owner limit 1–100, competition limit 1–10000, and lifetime 5–720 minutes. Explicit `SandboxPolicy` values may still be supplied by trusted internal callers and tests.
 
 Before counting active records, the service locks the owner and competition rows in a fixed order. On PostgreSQL, this serializes quota checks for concurrent requests that share an owner or competition, preventing both requests from observing the same available slot. SQLite ignores `FOR UPDATE`, so its test database does not validate this concurrency guarantee. All sandbox creation paths must use this service; bypassing it bypasses the quota protection.
 
@@ -22,4 +22,4 @@ A transition requires the owner or an admin. Missing and unauthorized instances 
 
 ## Operational limitations
 
-Quota values remain conservative code defaults and should be moved to validated deployment settings before public launch. An expiry worker/reconciliation strategy and provider cleanup semantics are also still required before enabling real provider launches. The API must not allow clients to submit provider IDs or directly choose lifecycle states.
+An expiry worker/reconciliation strategy and provider cleanup semantics are still required before enabling real provider launches. The API must not allow clients to submit provider IDs or directly choose lifecycle states.
