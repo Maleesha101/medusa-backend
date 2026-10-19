@@ -112,7 +112,13 @@ def test_cleanup_failure_sets_backoff_and_is_not_retried_early(session_factory) 
 
     with session_factory() as db:
         sandbox = db.get(SandboxInstance, sandbox_id)
-        assert sandbox.cleanup_next_attempt_at == now + timedelta(seconds=30)
+        retry_at = sandbox.cleanup_next_attempt_at
+        assert retry_at is not None
+        if retry_at.tzinfo is None:
+            retry_at = retry_at.replace(tzinfo=UTC)
+        else:
+            retry_at = retry_at.astimezone(UTC)
+        assert retry_at == now + timedelta(seconds=30)
 
     with session_factory() as db:
         result = reconcile_provider_cleanup(
