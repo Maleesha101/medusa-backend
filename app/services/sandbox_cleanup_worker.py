@@ -11,6 +11,7 @@ import argparse
 
 from app.db.session import SessionLocal
 from app.services.sandbox_cleanup import reconcile_provider_cleanup
+from app.services.sandbox_cleanup_metrics import sandbox_cleanup_metrics
 
 
 def main() -> int:
@@ -23,6 +24,7 @@ def main() -> int:
 
     with SessionLocal() as db:
         result = reconcile_provider_cleanup(db, batch_size=args.batch_size)
+    sandbox_cleanup_metrics.observe_batch(result)
     print(
         "Provider cleanup: "
         f"processed={result['processed']} cleaned={result['cleaned']} failed={result['failed']}"
