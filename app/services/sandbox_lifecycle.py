@@ -263,6 +263,8 @@ def expire_due_sandboxes(
         previous_state = sandbox.state
         sandbox.state = "expired"
         sandbox.stopped_at = current_time
+        if sandbox.provider_instance_id:
+            sandbox.cleanup_status = "pending"
         record_audit_event(
             db,
             actor=None,
