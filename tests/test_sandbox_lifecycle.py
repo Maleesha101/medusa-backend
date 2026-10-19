@@ -119,3 +119,49 @@ def test_sandbox_policy_defaults_are_conservative() -> None:
     assert policy.max_active_per_owner == 2
     assert policy.max_active_per_competition == 20
     assert policy.max_lifetime == timedelta(hours=2)
+
+
+def test_expiry_reconciliation_expires_due_sandboxes(session_factory) -> None:
+    from app.services.sandbox_lifecycle import expire_due_sandboxes
+
+    now = datetime.now(UTC)
+    with session_factory() as db:
+        owner = User(
+            email="sandbox-expiry-owner@example.test",
+            password_hash="not-a-real-hash",
+            role="participant",
+        )
+        db.add(owner)
+        db.flush()
+        due = SandboxInstance(
+            challenge_id=1,
+            owner_user_id=owner.id,
+            state="running",
+            expires_at=now - timedelta(minutes=1),
+        )
+        future = SandboxInstance(
+            challenge_id=1,
+            owner_user_id=owner.id,
+            state="pending",
+            expires_at=now + timedelta(minutes=10),
+        )
+        db.add_all([due, future])
+        db.commit()
+        due_id, future_id = due.id, future.id
+
+    with session_factory() as db:
+        assert expire_due_sandboxes(db, now=now) == 1
+
+    with session_factory() as db:
+        due = db.get(SandboxInstance, due_id)
+        future = db.get(SandboxInstance, future_id)
+        assert due.state == "expired"
+        assert due.stopped_at is not None
+        assert future.state == "pending"
+
+
+def test_expiry_reconciliation_validates_batch_size(session_factory) -> None:
+    from app.services.sandbox_lifecycle import expire_due_sandboxes
+
+    with session_factory() as db, pytest.raises(ValueError):
+        expire_due_sandboxes(db, batch_size=0)

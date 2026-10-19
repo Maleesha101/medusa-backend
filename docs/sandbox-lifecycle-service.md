@@ -22,4 +22,4 @@ A transition requires the owner or an admin. Missing and unauthorized instances 
 
 ## Operational limitations
 
-An expiry worker/reconciliation strategy and provider cleanup semantics are still required before enabling real provider launches. The API must not allow clients to submit provider IDs or directly choose lifecycle states.
+The `expire_due_sandboxes` service marks overdue pending/running records as expired in bounded batches, sets the stop timestamp, and records an audit event. A scheduled worker still needs to invoke this function regularly. PostgreSQL workers use `SKIP LOCKED` to avoid processing the same rows concurrently. This metadata reconciliation does not stop a runtime; provider cleanup semantics and a provider-aware cleanup worker remain required before enabling real provider launches. The API must not allow clients to submit provider IDs or directly choose lifecycle states.
