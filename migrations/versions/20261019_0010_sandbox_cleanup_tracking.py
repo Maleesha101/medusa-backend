@@ -34,19 +34,19 @@ def upgrade() -> None:
         "sandbox_instances",
         sa.Column("cleanup_error_code", sa.String(length=64), nullable=True),
     )
-    op.create_check_constraint(
-        "ck_sandbox_instances_cleanup_status",
-        "sandbox_instances",
-        "cleanup_status IN ('not_required', 'pending', 'cleaned', 'failed')",
-    )
+    with op.batch_alter_table("sandbox_instances") as batch_op:
+        batch_op.create_check_constraint(
+            "ck_sandbox_instances_cleanup_status",
+            "cleanup_status IN ('not_required', 'pending', 'cleaned', 'failed')",
+        )
 
 
 def downgrade() -> None:
-    op.drop_constraint(
-        "ck_sandbox_instances_cleanup_status",
-        "sandbox_instances",
-        type_="check",
-    )
-    op.drop_column("sandbox_instances", "cleanup_error_code")
-    op.drop_column("sandbox_instances", "cleanup_attempts")
-    op.drop_column("sandbox_instances", "cleanup_status")
+    with op.batch_alter_table("sandbox_instances") as batch_op:
+        batch_op.drop_constraint(
+            "ck_sandbox_instances_cleanup_status",
+            type_="check",
+        )
+        batch_op.drop_column("cleanup_error_code")
+        batch_op.drop_column("cleanup_attempts")
+        batch_op.drop_column("cleanup_status")
