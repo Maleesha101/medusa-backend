@@ -14,6 +14,7 @@ from app.models.challenge import Challenge
 from app.models.competition import Competition
 from app.models.competition_round import CompetitionRound
 from app.models.sandbox_instance import SandboxInstance
+from app.core.config import get_settings
 from app.models.user import User
 from app.services.audit import record_audit_event
 
@@ -81,8 +82,15 @@ def request_sandbox(
 
     On PostgreSQL, locking the owner and competition rows serializes concurrent
     requests that share either quota. All sandbox creation paths must use this
-    service for the guarantee to hold.
+    service for the guarantee to hold. Deployment settings provide quota limits.
     """
+    if policy is None:
+        settings = get_settings()
+        policy = SandboxPolicy(
+            max_active_per_owner=settings.sandbox_max_active_per_owner,
+            max_active_per_competition=settings.sandbox_max_active_per_competition,
+            max_lifetime=timedelta(minutes=settings.sandbox_max_lifetime_minutes),
+        )
     current_time = now or datetime.now(UTC)
     if expires_at.tzinfo is None or current_time.tzinfo is None:
         raise SandboxConflict("Sandbox timestamps must include a timezone")
