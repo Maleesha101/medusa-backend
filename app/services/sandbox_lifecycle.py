@@ -225,3 +225,58 @@ def transition_sandbox(
     db.commit()
     db.refresh(sandbox)
     return sandbox
+
+ 
+
+def expire_due_sandboxes(
+    db: Session,
+    *,
+    now: datetime | None = None,
+    batch_size: int = 100,
+) -> int:
+    """Mark a bounded batch of overdue pending/running sandboxes as expired.
+
+    This is the idempotent database reconciliation step for a scheduled worker.
+    It does not contact a runtime provider; provider cleanup must be implemented
+    separately before real workloads are enabled. PostgreSQL workers use
+    SKIP LOCKED so concurrent workers can process different rows.
+    """
+    if batch_size < 1 or batch_size > 1000:
+        raise ValueError("batch_size must be between 1 and 1000")
+
+    current_time = now or datetime.now(UTC)
+    if current_time.tzinfo is None:
+        raise SandboxConflict("Sandbox timestamps must include a timezone")
+
+    overdue = list(
+        db.scalars(
+            select(SandboxInstance)
+            .where(
+                SandboxInstance.state.in_(ACTIVE_STATES),
+                SandboxInstance.expires_at <= current_time,
+            )
+            .order_by(SandboxInstance.expires_at, SandboxInstance.id)
+            .limit(batch_size)
+            .with_for_update(skip_locked=True)
+        )
+    )
+    for sandbox in overdue:
+        previous_state = sandbox.state
+        sandbox.state = "expired"
+        sandbox.stopped_at = current_time
+        record_audit_event(
+            db,
+            actor=None,
+            action="sandbox.expired",
+            resource_type="sandbox_instance",
+            resource_id=sandbox.id,
+            details={
+                "previous_state": previous_state,
+                "state": "expired",
+                "source": "expiry_reconciliation",
+            },
+        )
+
+    if overdue:
+        db.commit()
+    return len(overdue)
