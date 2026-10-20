@@ -1,5 +1,6 @@
 """Retryable provider cleanup for terminal sandbox records."""
 
+import logging
 from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import select
@@ -14,6 +15,7 @@ from app.services.sandbox_controller import (
 )
 
 CLEANUP_ELIGIBLE_STATES = ("stopped", "failed", "expired")
+logger = logging.getLogger(__name__)
 
 
 def reconcile_provider_cleanup(
@@ -74,12 +76,32 @@ def reconcile_provider_cleanup(
             sandbox.cleanup_next_attempt_at = current_time + timedelta(seconds=delay)
             failed += 1
             outcome = "failure"
+            logger.warning(
+                "Sandbox provider cleanup failed",
+                extra={
+                    "event": "sandbox_cleanup_attempt",
+                    "sandbox_id": sandbox.id,
+                    "cleanup_attempt": sandbox.cleanup_attempts,
+                    "cleanup_status": sandbox.cleanup_status,
+                    "cleanup_error_code": sandbox.cleanup_error_code,
+                    "cleanup_next_attempt_at": sandbox.cleanup_next_attempt_at.isoformat(),
+                },
+            )
         else:
             sandbox.cleanup_status = "cleaned"
             sandbox.cleanup_error_code = None
             sandbox.cleanup_next_attempt_at = None
             cleaned += 1
             outcome = "success"
+            logger.info(
+                "Sandbox provider cleanup succeeded",
+                extra={
+                    "event": "sandbox_cleanup_attempt",
+                    "sandbox_id": sandbox.id,
+                    "cleanup_attempt": sandbox.cleanup_attempts,
+                    "cleanup_status": sandbox.cleanup_status,
+                },
+            )
 
         record_audit_event(
             db,
@@ -102,4 +124,9 @@ def reconcile_provider_cleanup(
 
     if sandboxes:
         db.commit()
-    return {"processed": len(sandboxes), "cleaned": cleaned, "failed": failed}
+    result = {"processed": len(sandboxes), "cleaned": cleaned, "failed": failed}
+    logger.info(
+        "Sandbox cleanup batch completed",
+        extra={"event": "sandbox_cleanup_batch", **result},
+    )
+    return result
