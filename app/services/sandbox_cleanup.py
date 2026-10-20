@@ -1,7 +1,7 @@
 """Retryable provider cleanup for terminal sandbox records."""
 
-from datetime import UTC, datetime, timedelta
 import logging
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -125,5 +125,8 @@ def reconcile_provider_cleanup(
     if sandboxes:
         db.commit()
     result = {"processed": len(sandboxes), "cleaned": cleaned, "failed": failed}
-    logger.info("Sandbox cleanup batch completed", extra={"event": "sandbox_cleanup_batch", **result})
+    logger.info(
+        "Sandbox cleanup batch completed",
+        extra={"event": "sandbox_cleanup_batch", **result},
+    )
     return result
