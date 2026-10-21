@@ -4,8 +4,8 @@ This module evaluates operator-verified capabilities only. It does not inspect
 or modify the host, launch containers, or execute challenge code.
 """
 
+from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Mapping
 
 # These identifiers represent controls that must be verified for the actual
 # deployment. A boolean True is evidence supplied by a trusted operator/check;
