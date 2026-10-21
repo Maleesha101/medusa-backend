@@ -51,12 +51,8 @@ def evaluate_sandbox_host_capabilities(
     Extra capability keys are ignored so callers can supply richer host
     inventories without changing this release gate.
     """
-    missing = tuple(
-        name for name in REQUIRED_HOST_CAPABILITIES if capabilities.get(name) is False
-    )
-    unknown = tuple(
-        name for name in REQUIRED_HOST_CAPABILITIES if capabilities.get(name) is None
-    )
+    missing = tuple(name for name in REQUIRED_HOST_CAPABILITIES if capabilities.get(name) is False)
+    unknown = tuple(name for name in REQUIRED_HOST_CAPABILITIES if capabilities.get(name) is None)
     return SandboxHostPreflightReport(
         ready=not missing and not unknown,
         missing=missing,
