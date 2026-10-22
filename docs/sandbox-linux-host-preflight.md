@@ -83,3 +83,18 @@ and be reviewed before its output can be treated as evidence.
   fabricated or automatically marked true.
 - Provider activation: blocked pending host-specific evidence, integration
   tests, hostile-workload tests, and security sign-off.
+
+
+## Operator CLI
+
+The manifest CLI evaluates only the capability claims supplied by an operator. It does not inspect or change the host and does not enable a provider.
+
+Run it from the repository root:
+
+```bash
+python -m app.services.sandbox_host_preflight_cli /path/to/capabilities.json
+```
+
+The JSON file must be an object whose keys are the known capability identifiers above and whose values are `true`, `false`, or `null`. Omitted required identifiers are reported as unknown. Unknown identifiers and invalid value types are rejected without echoing manifest contents.
+
+The command prints deterministic JSON with `ready`, `blocked`, `missing`, and `unknown` fields. Exit code `0` means all required claims were explicitly marked true; exit code `1` means readiness is blocked; exit code `2` means the manifest could not be validated. A ready report is not security certification. Never mark a capability true without recorded evidence and review. Keep `SANDBOX_PROVIDER=unavailable`.
