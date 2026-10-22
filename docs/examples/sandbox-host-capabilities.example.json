@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "capabilities": {
+    "linux_namespaces": null,
+    "cgroups_v2": null,
+    "cpu_memory_pid_limits": null,
+    "strong_workload_isolation": null,
+    "seccomp": null,
+    "apparmor_or_selinux": null,
+    "network_namespaces": null,
+    "host_firewall_default_deny": null,
+    "block_metadata_and_internal_egress": null,
+    "bounded_ephemeral_storage": null,
+    "provider_enforced_hard_deadline": null,
+    "idempotent_cleanup_and_reconciliation": null,
+    "immutable_image_allowlist": null,
+    "dedicated_least_privilege_worker_identity": null,
+    "no_runtime_socket_or_host_secret_mounts": null
+  }
+}
