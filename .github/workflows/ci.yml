@@ -86,3 +86,30 @@ jobs:
           path: pip-audit-report.json
           if-no-files-found: warn
           retention-days: 14
+
+  secret-scan:
+    name: Secret scanning (Gitleaks)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.24.2"
+      - name: Install Gitleaks
+        run: go install github.com/zricethezav/gitleaks/v8@v8.24.2
+      - name: Scan repository for secrets
+        run: gitleaks dir . --report-format json --report-path gitleaks-report.json --redact --exit-code 1
+      - name: Upload Gitleaks JSON report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gitleaks-secret-scan-report
+          path: gitleaks-report.json
+          if-no-files-found: warn
+          retention-days: 7
