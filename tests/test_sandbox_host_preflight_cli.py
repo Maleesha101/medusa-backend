@@ -69,14 +69,35 @@ def test_cli_reports_incomplete_manifest_as_blocked(tmp_path: Path) -> None:
     [
         ('{"schema_version":', "unable to read a valid JSON manifest"),
         (json.dumps([True, False]), "manifest must be a JSON object"),
-        (json.dumps({"schema_version": 2, "capabilities": {}}), "unsupported manifest schema version"),
-        (json.dumps({"schema_version": 1, "capabilities": {}, "secret": "never-echo"}), "must contain only schema_version and capabilities"),
-        (json.dumps({"schema_version": 1, "capabilities": {"unknown_secret": "never-echo"}}), "unknown capability identifier"),
-        (json.dumps({"schema_version": 1, "capabilities": {"seccomp": "yes"}}), "capability values must be true, false, or null"),
-        (json.dumps({"schema_version": 1, "capabilities": []}), "capabilities must be a JSON object"),
+        (
+            json.dumps({"schema_version": 2, "capabilities": {}}),
+            "unsupported manifest schema version",
+        ),
+        (
+            json.dumps(
+                {"schema_version": 1, "capabilities": {}, "secret": "never-echo"}
+            ),
+            "must contain only schema_version and capabilities",
+        ),
+        (
+            json.dumps(
+                {"schema_version": 1, "capabilities": {"unknown_secret": "never-echo"}}
+            ),
+            "unknown capability identifier",
+        ),
+        (
+            json.dumps({"schema_version": 1, "capabilities": {"seccomp": "yes"}}),
+            "capability values must be true, false, or null",
+        ),
+        (
+            json.dumps({"schema_version": 1, "capabilities": []}),
+            "capabilities must be a JSON object",
+        ),
     ],
 )
-def test_cli_rejects_invalid_manifest_safely(tmp_path: Path, content: str, error: str) -> None:
+def test_cli_rejects_invalid_manifest_safely(
+    tmp_path: Path, content: str, error: str
+) -> None:
     path = write_manifest(tmp_path, content)
 
     result = run_cli(path)
