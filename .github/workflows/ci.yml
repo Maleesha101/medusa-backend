@@ -113,3 +113,26 @@ jobs:
           path: gitleaks-report.json
           if-no-files-found: warn
           retention-days: 7
+
+  security-gate:
+    name: Required Security Gate
+    runs-on: ubuntu-latest
+    if: always()
+    needs:
+      - sast
+      - dependency-audit
+      - secret-scan
+    permissions: {}
+    steps:
+      - name: Require all security scans to succeed
+        env:
+          SAST_RESULT: ${{ needs.sast.result }}
+          DEPENDENCY_AUDIT_RESULT: ${{ needs.dependency-audit.result }}
+          SECRET_SCAN_RESULT: ${{ needs.secret-scan.result }}
+        run: |
+          printf 'Bandit SAST: %s\n' "$SAST_RESULT"
+          printf 'Dependency audit: %s\n' "$DEPENDENCY_AUDIT_RESULT"
+          printf 'Gitleaks secret scan: %s\n' "$SECRET_SCAN_RESULT"
+          test "$SAST_RESULT" = "success"
+          test "$DEPENDENCY_AUDIT_RESULT" = "success"
+          test "$SECRET_SCAN_RESULT" = "success"
