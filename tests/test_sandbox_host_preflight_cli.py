@@ -74,15 +74,11 @@ def test_cli_reports_incomplete_manifest_as_blocked(tmp_path: Path) -> None:
             "unsupported manifest schema version",
         ),
         (
-            json.dumps(
-                {"schema_version": 1, "capabilities": {}, "secret": "never-echo"}
-            ),
+            json.dumps({"schema_version": 1, "capabilities": {}, "secret": "never-echo"}),
             "must contain only schema_version and capabilities",
         ),
         (
-            json.dumps(
-                {"schema_version": 1, "capabilities": {"unknown_secret": "never-echo"}}
-            ),
+            json.dumps({"schema_version": 1, "capabilities": {"unknown_secret": "never-echo"}}),
             "unknown capability identifier",
         ),
         (
