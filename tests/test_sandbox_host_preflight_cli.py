@@ -91,9 +91,7 @@ def test_cli_reports_incomplete_manifest_as_blocked(tmp_path: Path) -> None:
         ),
     ],
 )
-def test_cli_rejects_invalid_manifest_safely(
-    tmp_path: Path, content: str, error: str
-) -> None:
+def test_cli_rejects_invalid_manifest_safely(tmp_path: Path, content: str, error: str) -> None:
     path = write_manifest(tmp_path, content)
 
     result = run_cli(path)
