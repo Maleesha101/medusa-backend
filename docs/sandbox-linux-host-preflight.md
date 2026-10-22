@@ -89,12 +89,12 @@ and be reviewed before its output can be treated as evidence.
 
 The manifest CLI evaluates only the capability claims supplied by an operator. It does not inspect or change the host and does not enable a provider.
 
-Run it from the repository root:
+Run it from the repository root, using the example manifest as a starting point:
 
 ```bash
-python -m app.services.sandbox_host_preflight_cli /path/to/capabilities.json
+python -m app.services.sandbox_host_preflight_cli docs/examples/sandbox-host-capabilities.example.json
 ```
 
-The JSON file must be an object whose keys are the known capability identifiers above and whose values are `true`, `false`, or `null`. Omitted required identifiers are reported as unknown. Unknown identifiers and invalid value types are rejected without echoing manifest contents.
+The manifest schema is versioned. A version 1 file must contain exactly `schema_version` and `capabilities`; `schema_version` must be the integer `1`, and `capabilities` must be an object mapping known capability identifiers to `true`, `false`, or `null`. The example deliberately sets every capability to `null`, so it reports blocked until each claim is verified. Omitted required identifiers are reported as unknown. Unknown identifiers, unexpected fields, unsupported schema versions, and invalid value types are rejected without echoing manifest contents.
 
 The command prints deterministic JSON with `ready`, `blocked`, `missing`, and `unknown` fields. Exit code `0` means all required claims were explicitly marked true; exit code `1` means readiness is blocked; exit code `2` means the manifest could not be validated. A ready report is not security certification. Never mark a capability true without recorded evidence and review. Keep `SANDBOX_PROVIDER=unavailable`.
