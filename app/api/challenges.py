@@ -5,7 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.api.dependencies import require_roles
+from app.api.dependencies import require_organization_access, require_roles
 from app.db.session import get_db
 from app.models.challenge import Challenge
 from app.models.challenge_flag import ChallengeFlag
@@ -35,6 +35,17 @@ def _challenge_or_404(db: Session, challenge_id: int) -> Challenge:
     if challenge is None:
         raise HTTPException(status_code=404, detail="Challenge not found")
     return challenge
+
+
+def _authorize_challenge_access(db: Session, user: User, challenge: Challenge) -> None:
+    """Enforce organization access for challenge authoring mutations."""
+    round_item = db.get(CompetitionRound, challenge.round_id)
+    if round_item is None:
+        raise HTTPException(status_code=404, detail="Round not found")
+    competition = db.get(Competition, round_item.competition_id)
+    if competition is None:
+        raise HTTPException(status_code=404, detail="Competition not found")
+    require_organization_access(db, user, competition.organization_id)
 
 
 def _public_parent_or_404(db: Session, round_id: int) -> CompetitionRound:
@@ -100,6 +111,7 @@ def create_challenge(
     competition = db.get(Competition, round_item.competition_id)
     if competition is None:
         raise HTTPException(status_code=404, detail="Competition not found")
+    require_organization_access(db, _user, competition.organization_id)
     if competition.status in {"completed", "archived"}:
         raise HTTPException(
             status_code=409,
@@ -147,6 +159,7 @@ def update_challenge(
 ) -> Challenge:
     """Update challenge metadata without accepting client-controlled status."""
     challenge = _challenge_or_404(db, challenge_id)
+    _authorize_challenge_access(db, _user, challenge)
     if challenge.status == "archived":
         raise HTTPException(status_code=409, detail="Archived challenges cannot be edited")
     changes = payload.model_dump(exclude_unset=True)
@@ -191,6 +204,7 @@ def update_challenge_status(
 ) -> Challenge:
     """Publish or archive a challenge using the server-defined lifecycle."""
     challenge = _challenge_or_404(db, challenge_id)
+    _authorize_challenge_access(db, _user, challenge)
     if payload.status not in ALLOWED_CHALLENGE_TRANSITIONS[challenge.status]:
         raise HTTPException(
             status_code=409,
