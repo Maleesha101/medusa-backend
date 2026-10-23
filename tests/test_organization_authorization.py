@@ -105,3 +105,33 @@ def test_organizers_are_scoped_to_organizations_they_created(
         headers=owner_headers,
     )
     assert allowed_round.status_code == 201
+
+    round_id = allowed_round.json()["id"]
+    owner_challenge = client.post(
+        f"/api/v1/rounds/{round_id}/challenges",
+        json={
+            "name": "Owner Challenge",
+            "slug": "owner-challenge",
+            "description": "A challenge owned by the first organization.",
+            "category": "web",
+            "points": 100,
+            "difficulty": "easy",
+        },
+        headers=owner_headers,
+    )
+    assert owner_challenge.status_code == 201
+    challenge_id = owner_challenge.json()["id"]
+
+    denied_challenge_update = client.patch(
+        f"/api/v1/challenges/{challenge_id}",
+        json={"name": "Unauthorized Edit"},
+        headers=other_headers,
+    )
+    assert denied_challenge_update.status_code == 403
+
+    allowed_challenge_update = client.patch(
+        f"/api/v1/challenges/{challenge_id}",
+        json={"name": "Owner Challenge Updated"},
+        headers=owner_headers,
+    )
+    assert allowed_challenge_update.status_code == 200
