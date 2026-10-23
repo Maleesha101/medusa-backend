@@ -17,30 +17,26 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
-    op.add_column(
-        "organizations",
-        sa.Column("created_by_user_id", sa.Integer(), nullable=True),
-    )
-    op.create_foreign_key(
-        "fk_organizations_created_by_user_id_users",
-        "organizations",
-        "users",
-        ["created_by_user_id"],
-        ["id"],
-        ondelete="RESTRICT",
-    )
-    op.create_index(
-        "ix_organizations_created_by_user_id",
-        "organizations",
-        ["created_by_user_id"],
-    )
+    with op.batch_alter_table("organizations") as batch_op:
+        batch_op.add_column(sa.Column("created_by_user_id", sa.Integer(), nullable=True))
+        batch_op.create_foreign_key(
+            "fk_organizations_created_by_user_id_users",
+            "users",
+            ["created_by_user_id"],
+            ["id"],
+            ondelete="RESTRICT",
+        )
+        batch_op.create_index(
+            "ix_organizations_created_by_user_id",
+            ["created_by_user_id"],
+        )
 
 
 def downgrade() -> None:
-    op.drop_index("ix_organizations_created_by_user_id", table_name="organizations")
-    op.drop_constraint(
-        "fk_organizations_created_by_user_id_users",
-        "organizations",
-        type_="foreignkey",
-    )
-    op.drop_column("organizations", "created_by_user_id")
+    with op.batch_alter_table("organizations") as batch_op:
+        batch_op.drop_index("ix_organizations_created_by_user_id")
+        batch_op.drop_constraint(
+            "fk_organizations_created_by_user_id_users",
+            type_="foreignkey",
+        )
+        batch_op.drop_column("created_by_user_id")
