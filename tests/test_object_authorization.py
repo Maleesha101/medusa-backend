@@ -117,9 +117,7 @@ def test_member_can_leave_only_their_own_membership(
     with session_factory() as db:
         team = db.get(Team, team_id)
         assert team is not None
-        captain = db.scalar(
-            select(User).where(User.email == "membership-captain@example.com")
-        )
+        captain = db.scalar(select(User).where(User.email == "membership-captain@example.com"))
         member = db.scalar(select(User).where(User.email == "membership-member@example.com"))
         assert captain is not None
         assert member is not None
