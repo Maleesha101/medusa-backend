@@ -3,6 +3,7 @@
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
+from app.models.challenge_flag import ChallengeFlag
 from app.models.user import User
 
 
@@ -117,6 +118,35 @@ def test_organizers_are_scoped_to_organizations_they_created(
     )
     assert owner_challenge.status_code == 201
     challenge_id = owner_challenge.json()["id"]
+
+    configured_flag = client.put(
+        f"/api/v1/challenges/{challenge_id}/flag",
+        json={"flag": "MEDUSA{owner_only_original_flag}"},
+        headers=owner_headers,
+    )
+    assert configured_flag.status_code == 204
+
+    with session_factory() as db:
+        original_digest = db.get(ChallengeFlag, challenge_id).flag_hash
+
+    denied_flag_change = client.put(
+        f"/api/v1/challenges/{challenge_id}/flag",
+        json={"flag": "MEDUSA{unauthorized_replacement}"},
+        headers=other_headers,
+    )
+    assert denied_flag_change.status_code == 403
+
+    with session_factory() as db:
+        persisted_flag = db.get(ChallengeFlag, challenge_id)
+        assert persisted_flag is not None
+        assert persisted_flag.flag_hash == original_digest
+
+    allowed_flag_change = client.put(
+        f"/api/v1/challenges/{challenge_id}/flag",
+        json={"flag": "MEDUSA{owner_replacement_flag}"},
+        headers=owner_headers,
+    )
+    assert allowed_flag_change.status_code == 204
 
     denied_challenge_update = client.patch(
         f"/api/v1/challenges/{challenge_id}",
