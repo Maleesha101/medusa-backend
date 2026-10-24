@@ -30,12 +30,8 @@ def test_organizers_are_scoped_to_organizations_they_created(
     client: TestClient,
     session_factory,
 ) -> None:
-    owner_token = register_organizer(
-        client, session_factory, "organization-owner@example.com"
-    )
-    other_token = register_organizer(
-        client, session_factory, "organization-other@example.com"
-    )
+    owner_token = register_organizer(client, session_factory, "organization-owner@example.com")
+    other_token = register_organizer(client, session_factory, "organization-other@example.com")
 
     owner_headers = {"Authorization": f"Bearer {owner_token}"}
     other_headers = {"Authorization": f"Bearer {other_token}"}
