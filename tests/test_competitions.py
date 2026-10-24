@@ -27,7 +27,11 @@ def prepare_organizer(client: TestClient, session_factory, email: str) -> tuple[
         assert user is not None
         user.role = "organizer"
         db.commit()
-        organization = Organization(name="Test University", slug="test-university")
+        organization = Organization(
+            name="Test University",
+            slug="test-university",
+            created_by_user_id=user.id,
+        )
         db.add(organization)
         db.commit()
         organization_id = organization.id
