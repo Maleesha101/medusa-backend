@@ -8,7 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.api.dependencies import get_current_user, require_roles
+from app.api.dependencies import get_current_user, require_organization_access, require_roles
 from app.core.config import get_settings
 from app.core.rate_limit import consume_rate_limit
 from app.db.session import get_db
@@ -48,6 +48,11 @@ def set_challenge_flag(
     challenge = db.get(Challenge, challenge_id)
     if challenge is None:
         raise HTTPException(status_code=404, detail="Challenge not found")
+    round_item = db.get(CompetitionRound, challenge.round_id)
+    competition = db.get(Competition, round_item.competition_id) if round_item else None
+    if competition is None:
+        raise HTTPException(status_code=404, detail="Challenge not found")
+    require_organization_access(db, _user, competition.organization_id)
     if challenge.status != "draft":
         raise HTTPException(
             status_code=409,
