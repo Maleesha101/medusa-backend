@@ -10,7 +10,6 @@ from app.db.session import get_db
 from app.models.membership import Membership
 from app.models.organization import Organization
 from app.models.team import Team
-from app.models.user import User
 from app.schemas.teams import MemberPublic, TeamCreate, TeamDetail, TeamPublic
 
 router = APIRouter(tags=["teams"])
