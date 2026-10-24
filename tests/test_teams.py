@@ -57,6 +57,11 @@ def test_organization_team_membership_flow(client: TestClient, session_factory) 
     assert team_response.status_code == 201
     team = team_response.json()
     assert team["members"][0]["role"] == "captain"
+    assert "email" not in team["members"][0]
+    assert "captain@example.com" not in team_response.text
+    public_team = client.get(f"/api/v1/teams/{team['id']}")
+    assert public_team.status_code == 200
+    assert "captain@example.com" not in public_team.text
 
     member_token = register_and_login(client, "member@example.com")
     member_headers = {"Authorization": f"Bearer {member_token}"}

@@ -11,7 +11,6 @@ class TeamCreate(BaseModel):
 
 class MemberPublic(BaseModel):
     user_id: int
-    email: str
     role: str
     joined_at: datetime
 

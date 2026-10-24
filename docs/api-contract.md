@@ -33,13 +33,13 @@ All public HTTP endpoints live under /api/v1. Breaking changes require a version
 | GET | /api/v1/organizations/{organization_id} | Get an active organization | Public |
 | GET | /api/v1/organizations/{organization_id}/teams | List teams in an active organization | Public |
 | POST | /api/v1/organizations/{organization_id}/teams | Create a team; creator becomes captain | Authenticated |
-| GET | /api/v1/teams/{team_id} | Get team details and membership list | Public |
+| GET | /api/v1/teams/{team_id} | Get team details and public membership roster | Public; roster omits member email addresses |
 | POST | /api/v1/teams/{team_id}/join | Join a team as the current user | Authenticated |
 | DELETE | /api/v1/teams/{team_id}/leave | Leave a team | Authenticated; captain cannot leave yet |
 
 Organization slugs must use lowercase letters, digits, and single hyphens. Duplicate slugs return HTTP 409. Team names are unique within an organization; duplicate names return HTTP 409. Joining an inactive or missing organization is not allowed. Duplicate membership returns HTTP 409. A team captain must transfer captaincy before leaving; captaincy transfer is not implemented in this phase.
 
-## Competition and round endpoints
+Public team rosters expose member user IDs, roles, and join timestamps only; they do not expose email addresses.\n\n## Competition and round endpoints
 
 | Method | Path | Purpose | Access |
 | --- | --- | --- | --- |
