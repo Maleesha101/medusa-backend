@@ -32,7 +32,9 @@ def _prepare_organizer(client, session_factory, email: str) -> tuple[str, int]:
         organizer.role = "organizer"
         db.commit()
         organization = Organization(
-            name="Submission Test University", slug="submission-test-university"
+            name="Submission Test University",
+            slug="submission-test-university",
+            created_by_user_id=organizer.id,
         )
         db.add(organization)
         db.commit()

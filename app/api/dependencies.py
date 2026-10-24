@@ -49,3 +49,20 @@ def require_roles(*roles: str):
         return user
 
     return role_guard
+
+
+def require_organization_access(db: Session, user: User, organization_id: int) -> None:
+    """Allow admins globally and organizers only for organizations they created.
+
+    Legacy organizations without an assigned creator fail closed for organizers
+    and can be administered only by a platform admin until ownership is assigned.
+    """
+    from app.models.organization import Organization
+
+    organization = db.get(Organization, organization_id)
+    if organization is None or not organization.is_active:
+        raise HTTPException(status_code=404, detail="Organization not found")
+    if user.role == "admin":
+        return
+    if user.role != "organizer" or organization.created_by_user_id != user.id:
+        raise HTTPException(status_code=403, detail="No access to this organization")

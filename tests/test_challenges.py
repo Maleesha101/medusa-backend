@@ -30,6 +30,7 @@ def prepare_organizer(client: TestClient, session_factory, email: str) -> tuple[
         organization = Organization(
             name="Challenge Test University",
             slug="challenge-test-university",
+            created_by_user_id=user.id,
         )
         db.add(organization)
         db.commit()

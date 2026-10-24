@@ -5,7 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.api.dependencies import require_roles
+from app.api.dependencies import require_organization_access, require_roles
 from app.db.session import get_db
 from app.models.competition import Competition
 from app.models.competition_round import CompetitionRound
@@ -66,6 +66,7 @@ def create_competition(
     organization = db.get(Organization, payload.organization_id)
     if organization is None or not organization.is_active:
         raise HTTPException(status_code=404, detail="Active organization not found")
+    require_organization_access(db, user, organization.id)
     competition = Competition(
         organization_id=payload.organization_id,
         created_by_user_id=user.id,
@@ -114,6 +115,7 @@ def update_competition_status(
 ) -> Competition:
     """Move a competition through the allowed lifecycle transitions."""
     competition = _competition_or_404(db, competition_id)
+    require_organization_access(db, _user, competition.organization_id)
     if payload.status not in ALLOWED_TRANSITIONS[competition.status]:
         raise HTTPException(
             status_code=409,
@@ -170,6 +172,7 @@ def create_round(
 ) -> CompetitionRound:
     """Create a round with a unique position and slug within the competition."""
     competition = _competition_or_404(db, competition_id)
+    require_organization_access(db, _user, competition.organization_id)
     if competition.status in {"completed", "archived"}:
         raise HTTPException(
             status_code=409,

@@ -29,13 +29,14 @@ def list_organizations(db: Session = Depends(get_db)) -> list[Organization]:
 def create_organization(
     payload: OrganizationCreate,
     db: Session = Depends(get_db),
-    _user: User = Depends(require_roles("organizer", "admin")),
+    user: User = Depends(require_roles("organizer", "admin")),
 ) -> Organization:
     """Create an organization; only organizers and admins may do this."""
     organization = Organization(
         name=payload.name.strip(),
         slug=payload.slug.lower(),
         description=payload.description,
+        created_by_user_id=user.id,
     )
     db.add(organization)
     try:
