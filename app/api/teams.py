@@ -24,20 +24,18 @@ def _active_organization(db: Session, organization_id: int) -> Organization:
 
 
 def _team_detail(db: Session, team: Team) -> TeamDetail:
-    rows = db.execute(
-        select(Membership, User.email)
-        .join(User, User.id == Membership.user_id)
+    memberships = db.scalars(
+        select(Membership)
         .where(Membership.team_id == team.id)
         .order_by(Membership.joined_at, Membership.id)
     ).all()
     members = [
         MemberPublic(
             user_id=membership.user_id,
-            email=email,
             role=membership.role,
             joined_at=membership.joined_at,
         )
-        for membership, email in rows
+        for membership in memberships
     ]
     return TeamDetail(
         id=team.id,
