@@ -1,0 +1,155 @@
+### MEDUSA API — Team operations and captain transfer
+### Run with VS Code REST Client. Execute requests in order.
+### Organizer account must already have role="organizer" or "admin".
+### Use an existing active organization and replace example credentials.
+
+@baseUrl = http://localhost:8000/api/v1
+@organizationId = 1
+@organizerEmail = organizer@example.com
+@organizerPassword = replace-with-organizer-password
+@memberEmail = team-member@example.com
+@memberPassword = replace-with-member-password
+@outsiderEmail = team-outsider@example.com
+@outsiderPassword = replace-with-outsider-password
+@teamName = MEDUSA-HTTP-Test-Team
+
+### 1. Register member account (skip if it already exists)
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+
+{
+  "email": "{{memberEmail}}",
+  "password": "{{memberPassword}}"
+}
+
+### 2. Register outsider account (skip if it already exists)
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+
+{
+  "email": "{{outsiderEmail}}",
+  "password": "{{outsiderPassword}}"
+}
+
+### 3. Login as organizer
+# @name organizerLogin
+POST {{baseUrl}}/auth/token
+Content-Type: application/x-www-form-urlencoded
+
+username={{organizerEmail}}&password={{organizerPassword}}
+
+### 4. Login as member
+# @name memberLogin
+POST {{baseUrl}}/auth/token
+Content-Type: application/x-www-form-urlencoded
+
+username={{memberEmail}}&password={{memberPassword}}
+
+### 5. Login as outsider
+# @name outsiderLogin
+POST {{baseUrl}}/auth/token
+Content-Type: application/x-www-form-urlencoded
+
+username={{outsiderEmail}}&password={{outsiderPassword}}
+
+### 6. List active organizations
+GET {{baseUrl}}/organizations
+
+### 7. List teams for the organization
+GET {{baseUrl}}/organizations/{{organizationId}}/teams
+
+### 8. Create team; creator becomes captain
+# @name createTeam
+POST {{baseUrl}}/organizations/{{organizationId}}/teams
+Authorization: Bearer {{organizerLogin.response.body.$.access_token}}
+Content-Type: application/json
+
+{
+  "name": "{{teamName}}"
+}
+
+### 9. Get public team details; verify response does not expose member emails
+GET {{baseUrl}}/teams/{{createTeam.response.body.$.id}}
+
+### 10. Join team as member
+# @name joinTeam
+POST {{baseUrl}}/teams/{{createTeam.response.body.$.id}}/join
+Authorization: Bearer {{memberLogin.response.body.$.access_token}}
+
+### 11. Duplicate join by same member (expected 409)
+POST {{baseUrl}}/teams/{{createTeam.response.body.$.id}}/join
+Authorization: Bearer {{memberLogin.response.body.$.access_token}}
+
+### 12. Non-member attempts captain transfer (expected 403)
+PUT {{baseUrl}}/teams/{{createTeam.response.body.$.id}}/captain
+Authorization: Bearer {{outsiderLogin.response.body.$.access_token}}
+Content-Type: application/json
+
+{
+  "user_id": {{createTeam.response.body.$.captain_user_id}}
+}
+
+### 13. Current captain attempts self-transfer (expected 409)
+PUT {{baseUrl}}/teams/{{createTeam.response.body.$.id}}/captain
+Authorization: Bearer {{organizerLogin.response.body.$.access_token}}
+Content-Type: application/json
+
+{
+  "user_id": {{createTeam.response.body.$.captain_user_id}}
+}
+
+### 14. Current captain transfers to non-member (expected 404)
+PUT {{baseUrl}}/teams/{{createTeam.response.body.$.id}}/captain
+Authorization: Bearer {{organizerLogin.response.body.$.access_token}}
+Content-Type: application/json
+
+{
+  "user_id": 999999
+}
+
+### 15. Valid captain transfer to existing member
+PUT {{baseUrl}}/teams/{{createTeam.response.body.$.id}}/captain
+Authorization: Bearer {{organizerLogin.response.body.$.access_token}}
+Content-Type: application/json
+
+{
+  "user_id": {{joinTeam.response.body.$.members[1].user_id}}
+}
+
+### 16. Former captain leaves after transfer (expected 204)
+DELETE {{baseUrl}}/teams/{{createTeam.response.body.$.id}}/leave
+Authorization: Bearer {{organizerLogin.response.body.$.access_token}}
+
+### 17. New captain cannot leave without transferring captaincy (expected 409)
+DELETE {{baseUrl}}/teams/{{createTeam.response.body.$.id}}/leave
+Authorization: Bearer {{memberLogin.response.body.$.access_token}}
+
+### 18. Get team after leave
+GET {{baseUrl}}/teams/{{createTeam.response.body.$.id}}
+
+### 19. Non-member attempts to leave (expected 404)
+DELETE {{baseUrl}}/teams/{{createTeam.response.body.$.id}}/leave
+Authorization: Bearer {{outsiderLogin.response.body.$.access_token}}
+
+### 20. Unknown team details (expected 404)
+GET {{baseUrl}}/teams/999999
+
+### 21. Unknown organization team list (expected 404)
+GET {{baseUrl}}/organizations/999999/teams
+
+### 22. Duplicate team name in same organization (expected 409)
+POST {{baseUrl}}/organizations/{{organizationId}}/teams
+Authorization: Bearer {{organizerLogin.response.body.$.access_token}}
+Content-Type: application/json
+
+{
+  "name": "{{teamName}}"
+}
+
+### 23. Missing bearer token when creating a team (expected 401)
+POST {{baseUrl}}/organizations/{{organizationId}}/teams
+Content-Type: application/json
+
+{
+  "name": "MEDUSA-Unauthenticated-Test"
+}
