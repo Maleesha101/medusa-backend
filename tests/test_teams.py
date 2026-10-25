@@ -81,6 +81,27 @@ def test_organization_team_membership_flow(client: TestClient, session_factory) 
     member_id = next(
         item["user_id"] for item in joined.json()["members"] if item["role"] == "member"
     )
+    denied_transfer = client.put(
+        f"/api/v1/teams/{team['id']}/captain",
+        json={"user_id": team["captain_user_id"]},
+        headers=member_headers,
+    )
+    assert denied_transfer.status_code == 403
+
+    self_transfer = client.put(
+        f"/api/v1/teams/{team['id']}/captain",
+        json={"user_id": team["captain_user_id"]},
+        headers=headers,
+    )
+    assert self_transfer.status_code == 409
+
+    nonmember_transfer = client.put(
+        f"/api/v1/teams/{team['id']}/captain",
+        json={"user_id": 999999},
+        headers=headers,
+    )
+    assert nonmember_transfer.status_code == 404
+
     transfer = client.put(
         f"/api/v1/teams/{team['id']}/captain",
         json={"user_id": member_id},
