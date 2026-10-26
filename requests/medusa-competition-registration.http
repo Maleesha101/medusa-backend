@@ -4,7 +4,8 @@
 
 @baseUrl = http://localhost:8000/api/v1
 @memberEmail = participant@example.com
-@password = replace-with-participant-password
+@organizerEmail = organizer@example.com
+@password = replace-with-account-password
 @competitionId = 1
 @teamId = 1
 
@@ -14,6 +15,13 @@ POST {{baseUrl}}/auth/token
 Content-Type: application/x-www-form-urlencoded
 
 username={{memberEmail}}&password={{password}}
+
+### Login as an organizer/admin to inspect the private roster
+# @name organizerLogin
+POST {{baseUrl}}/auth/token
+Content-Type: application/x-www-form-urlencoded
+
+username={{organizerEmail}}&password={{password}}
 
 ### 2. Register team for competition (expected 201)
 # @name registerTeam
@@ -61,7 +69,7 @@ Content-Type: application/json
 ### 6. List registrations (organizer/admin token required; expected 200)
 # @name registrationRoster
 GET {{baseUrl}}/competitions/{{competitionId}}/registrations?limit=50&offset=0
-Authorization: Bearer {{organizerToken}}
+Authorization: Bearer {{organizerLogin.response.body.$.access_token}}
 
 ### 7. Withdraw registration (team captain token required; expected 204 while competition is published)
 DELETE {{baseUrl}}/competitions/{{competitionId}}/registrations/{{teamId}}
