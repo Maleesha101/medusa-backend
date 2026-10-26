@@ -3,6 +3,7 @@ from sqlalchemy import select
 from app.models.audit_event import AuditEvent
 from app.models.challenge_flag import ChallengeFlag
 from app.models.challenge_submission import ChallengeSubmission
+from app.models.competition_registration import CompetitionRegistration
 from app.models.membership import Membership
 from app.models.organization import Organization
 from app.models.team import Team
@@ -126,6 +127,18 @@ def _prepare_active_challenge(client, session_factory):
         headers=headers,
     )
     assert active.status_code == 200
+
+    with session_factory() as db:
+        organizer = db.scalar(select(User).where(User.email == organizer_email))
+        assert organizer is not None
+        db.add(
+            CompetitionRegistration(
+                competition_id=competition_id,
+                team_id=team_id,
+                registered_by_user_id=organizer.id,
+            )
+        )
+        db.commit()
     return organizer_token, challenge_id, team_id, headers, competition_id
 
 
@@ -302,3 +315,106 @@ def test_incorrect_submission_limit_is_shared_by_team_and_challenge(client, sess
             ).all()
         )
         assert len(attempts) == 10
+
+
+def test_unregistered_team_cannot_submit_flags(client, session_factory):
+    _, challenge_id, team_id, headers, _ = _prepare_active_challenge(client, session_factory)
+    with session_factory() as db:
+        registration = db.scalar(
+            select(CompetitionRegistration).where(CompetitionRegistration.team_id == team_id)
+        )
+        assert registration is not None
+        db.delete(registration)
+        db.commit()
+
+    response = client.post(
+        f"/api/v1/challenges/{challenge_id}/submissions",
+        json={"team_id": team_id, "flag": "MEDUSA{packet_beacon_found_2026}"},
+        headers=headers,
+    )
+
+    assert response.status_code == 409
+    assert "register" in response.json()["detail"].lower()
+    with session_factory() as db:
+        submission_id = db.scalar(
+            select(ChallengeSubmission.id).where(ChallengeSubmission.team_id == team_id)
+        )
+        assert submission_id is None
+
+
+def test_registration_for_another_competition_does_not_allow_submission(client, session_factory):
+    organizer_token, challenge_id, team_id, headers, competition_a_id = _prepare_active_challenge(
+        client, session_factory
+    )
+    with session_factory() as db:
+        organizer = db.scalar(select(User).where(User.email == "submission-organizer@example.com"))
+        assert organizer is not None
+        organization_id = db.scalar(select(Team.organization_id).where(Team.id == team_id))
+        assert organization_id is not None
+
+    created_competition = client.post(
+        "/api/v1/competitions",
+        json={
+            "organization_id": organization_id,
+            "name": "Submission Test CTF B",
+            "slug": "submission-test-ctf-b",
+            "is_public": True,
+        },
+        headers=headers,
+    )
+    assert created_competition.status_code == 201
+    competition_b_id = created_competition.json()["id"]
+    published = client.patch(
+        f"/api/v1/competitions/{competition_b_id}/status",
+        json={"status": "published"},
+        headers=headers,
+    )
+    assert published.status_code == 200
+    round_response = client.post(
+        f"/api/v1/competitions/{competition_b_id}/rounds",
+        json={"name": "Qualifiers B", "slug": "qualifiers-b", "position": 1},
+        headers=headers,
+    )
+    assert round_response.status_code == 201
+    challenge_response = client.post(
+        f"/api/v1/rounds/{round_response.json()['id']}/challenges",
+        json={
+            "name": "Beacon Trace B",
+            "slug": "beacon-trace-b",
+            "description": "Cross-competition registration regression.",
+            "category": "Forensics",
+            "points": 200,
+            "difficulty": "medium",
+        },
+        headers=headers,
+    )
+    assert challenge_response.status_code == 201
+    challenge_b_id = challenge_response.json()["id"]
+    configured = client.put(
+        f"/api/v1/challenges/{challenge_b_id}/flag",
+        json={"flag": "MEDUSA{packet_beacon_found_2026}"},
+        headers=headers,
+    )
+    assert configured.status_code == 204
+    published_challenge = client.patch(
+        f"/api/v1/challenges/{challenge_b_id}/status",
+        json={"status": "published"},
+        headers=headers,
+    )
+    assert published_challenge.status_code == 200
+    activated = client.patch(
+        f"/api/v1/competitions/{competition_b_id}/status",
+        json={"status": "active"},
+        headers=headers,
+    )
+    assert activated.status_code == 200
+
+    # The team is registered for A, but has no registration for B.
+    response = client.post(
+        f"/api/v1/challenges/{challenge_b_id}/submissions",
+        json={"team_id": team_id, "flag": "MEDUSA{packet_beacon_found_2026}"},
+        headers=headers,
+    )
+
+    assert competition_a_id != competition_b_id
+    assert response.status_code == 409

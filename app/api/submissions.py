@@ -16,6 +16,7 @@ from app.models.challenge import Challenge
 from app.models.challenge_flag import ChallengeFlag
 from app.models.challenge_submission import ChallengeSubmission
 from app.models.competition import Competition
+from app.models.competition_registration import CompetitionRegistration
 from app.models.competition_round import CompetitionRound
 from app.models.membership import Membership
 from app.models.team import Team
@@ -131,6 +132,18 @@ def submit_challenge_flag(
     )
     if membership is None:
         raise HTTPException(status_code=403, detail="You are not a member of this team")
+
+    registration = db.scalar(
+        select(CompetitionRegistration.id).where(
+            CompetitionRegistration.competition_id == competition.id,
+            CompetitionRegistration.team_id == team.id,
+        )
+    )
+    if registration is None:
+        raise HTTPException(
+            status_code=409,
+            detail="Team must register for this competition before submitting flags",
+        )
 
     already_solved = db.scalar(
         select(ChallengeSubmission.id).where(
