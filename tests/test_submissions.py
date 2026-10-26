@@ -337,7 +337,10 @@ def test_unregistered_team_cannot_submit_flags(client, session_factory):
     assert response.status_code == 409
     assert "register" in response.json()["detail"].lower()
     with session_factory() as db:
-        assert db.scalar(select(ChallengeSubmission.id).where(ChallengeSubmission.team_id == team_id)) is None
+        submission_id = db.scalar(
+            select(ChallengeSubmission.id).where(ChallengeSubmission.team_id == team_id)
+        )
+        assert submission_id is None
 
 
 def test_registration_for_another_competition_does_not_allow_submission(
