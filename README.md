@@ -28,6 +28,8 @@ MEDUSA uses a **modular monolith** initially. Domain boundaries are explicit, bu
 - POST /api/v1/teams/{team_id}/join and DELETE /api/v1/teams/{team_id}/leave — membership operations
 - GET/POST /api/v1/competitions — list public competitions and create a draft competition
 - POST /api/v1/competitions/{competition_id}/registrations — register an eligible team during the registration window
+- GET /api/v1/competitions/{competition_id}/registrations — private paginated registration roster (authorized organizer/admin)
+- DELETE /api/v1/competitions/{competition_id}/registrations/{team_id} — withdraw a team's registration (captain, before activation)
 - GET /api/v1/competitions/{competition_id} — retrieve a public competition
 - PATCH /api/v1/competitions/{competition_id}/status — advance competition lifecycle
 - GET/POST /api/v1/competitions/{competition_id}/rounds — list and create ordered rounds
