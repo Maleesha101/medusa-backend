@@ -74,7 +74,7 @@ Challenge slugs are unique within a round. Points must be between 1 and 10,000. 
 - Flags must be configured before publishing and may be changed only while the challenge remains a draft.
 - The API stores a keyed HMAC-SHA-256 digest of each flag, not plaintext. The configured AUTH_SECRET_KEY is used as the HMAC key; rotating it requires setting flags again for all challenges.
 - Flag comparison uses constant-time digest comparison.
-- A submission requires an active competition, a published challenge, an existing team from the same organization as the competition, and membership of the authenticated user in that team.
+- A submission requires an active competition, a published challenge, an existing team from the same organization as the competition, membership of the authenticated user in that team, and a registration record for that exact team and competition. Teams without a matching registration receive HTTP 409.
 - Each attempt records challenge ID, team ID, user ID, correctness, and timestamp. Submitted flag values are never persisted or returned.
 - Incorrect attempts return HTTP 200 with correct=false; correct attempts return HTTP 200 with correct=true.
 - A repeated solve by the same team returns HTTP 409. A partial unique database index protects the one-correct-solve invariant under concurrent submissions.
