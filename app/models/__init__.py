@@ -6,6 +6,7 @@ from app.models.challenge import Challenge
 from app.models.challenge_flag import ChallengeFlag
 from app.models.challenge_submission import ChallengeSubmission
 from app.models.competition import Competition
+from app.models.competition_registration import CompetitionRegistration
 from app.models.competition_round import CompetitionRound
 from app.models.membership import Membership
 from app.models.organization import Organization
@@ -22,6 +23,7 @@ __all__ = [
     "ChallengeSubmission",
     "Competition",
     "CompetitionRound",
+    "CompetitionRegistration",
     "Membership",
     "Organization",
     "PasswordResetToken",

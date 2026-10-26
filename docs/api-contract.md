@@ -115,3 +115,12 @@ Authentication rate limits use shared Redis fixed windows. Defaults are 5 regist
 ## Access-token revocation
 
 Access tokens include a unique token identifier (`jti`). `POST /api/v1/auth/logout` adds that identifier to a Redis denylist until the token's expiration. Authenticated requests check the denylist, so the logged-out token is rejected immediately. The denylist is shared across API replicas and entries expire automatically. Redis failures fail closed with HTTP 503 for authenticated requests and logout, rather than silently accepting a token whose revocation status cannot be checked. Logging out revokes only the presented access token; it does not revoke other tokens issued to the same account.
+
+
+## Competition team registration
+
+| Method | Path | Purpose | Access |
+| --- | --- | --- | --- |
+| POST | /api/v1/competitions/{competition_id}/registrations | Register a team for a public competition | Authenticated member of the team |
+
+The request body contains `team_id`. Registration is available only for public competitions in `published` or `active` status and only during the configured registration window. If `registration_opens_at` is unset, registration is open from publication; if `registration_closes_at` is unset, there is no closing-time limit. The team must belong to the competition's organization, and the authenticated caller must be a member of that team. A team can register only once per competition; a database unique constraint enforces this invariant. A hidden or unpublished competition returns HTTP 404, a closed/not-yet-open window returns HTTP 409, an ineligible team or non-member caller returns HTTP 403, and duplicate registration returns HTTP 409. Successful registration returns HTTP 201 with the registration ID, competition ID, team ID, registering user ID, and registration timestamp.

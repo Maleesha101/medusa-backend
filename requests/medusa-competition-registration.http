@@ -1,0 +1,58 @@
+### MEDUSA API — Competition team registration
+### Run with VS Code REST Client. Use a team member account and an existing public competition.
+### Registration must be open; the team must belong to the competition's organization.
+
+@baseUrl = http://localhost:8000/api/v1
+@memberEmail = participant@example.com
+@password = replace-with-participant-password
+@competitionId = 1
+@teamId = 1
+
+### 1. Login as a team member
+# @name memberLogin
+POST {{baseUrl}}/auth/token
+Content-Type: application/x-www-form-urlencoded
+
+username={{memberEmail}}&password={{password}}
+
+### 2. Register team for competition (expected 201)
+# @name registerTeam
+POST {{baseUrl}}/competitions/{{competitionId}}/registrations
+Authorization: Bearer {{memberLogin.response.body.$.access_token}}
+Content-Type: application/json
+
+{
+  "team_id": {{teamId}}
+}
+
+### 3. Register the same team again (expected 409)
+POST {{baseUrl}}/competitions/{{competitionId}}/registrations
+Authorization: Bearer {{memberLogin.response.body.$.access_token}}
+Content-Type: application/json
+
+{
+  "team_id": {{teamId}}
+}
+
+### 4. Try registration without authentication (expected 401)
+POST {{baseUrl}}/competitions/{{competitionId}}/registrations
+Content-Type: application/json
+
+{
+  "team_id": {{teamId}}
+}
+
+### 5. Try a missing competition (expected 404)
+POST {{baseUrl}}/competitions/999999/registrations
+Authorization: Bearer {{memberLogin.response.body.$.access_token}}
+Content-Type: application/json
+
+{
+  "team_id": {{teamId}}
+}
+
+### Note
+### Use a separate competition/team or remove the first registration to test other scenarios:
+### - registration not opened yet or already closed: expected 409
+### - private/draft competition: expected 404
+### - team from another organization or caller not in team: expected 403
