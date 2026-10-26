@@ -1,0 +1,46 @@
+### MEDUSA API — Submission requires competition registration
+### Use a team belonging to the same organization as an active competition.
+### This file tests submission BEFORE registration, then AFTER registration.
+
+@baseUrl = http://localhost:8000/api/v1
+@memberEmail = participant@example.com
+@password = replace-with-participant-password
+@competitionId = 1
+@teamId = 1
+@challengeId = 1
+
+### 1. Login as a team member
+# @name memberLogin
+POST {{baseUrl}}/auth/token
+Content-Type: application/x-www-form-urlencoded
+
+username={{memberEmail}}&password={{password}}
+
+### 2. Submit before registering (expected 403)
+POST {{baseUrl}}/challenges/{{challengeId}}/submissions
+Authorization: Bearer {{memberLogin.response.body.$.access_token}}
+Content-Type: application/json
+
+{
+  "team_id": {{teamId}},
+  "flag": "replace-with-test-flag"
+}
+
+### 3. Register the team for the competition (expected 201)
+POST {{baseUrl}}/competitions/{{competitionId}}/registrations
+Authorization: Bearer {{memberLogin.response.body.$.access_token}}
+Content-Type: application/json
+
+{
+  "team_id": {{teamId}}
+}
+
+### 4. Submit after registration (expected 200)
+POST {{baseUrl}}/challenges/{{challengeId}}/submissions
+Authorization: Bearer {{memberLogin.response.body.$.access_token}}
+Content-Type: application/json
+
+{
+  "team_id": {{teamId}},
+  "flag": "replace-with-test-flag"
+}
