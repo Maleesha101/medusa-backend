@@ -12,7 +12,6 @@ from app.db.session import get_db
 from app.models.competition import Competition
 from app.models.competition_registration import CompetitionRegistration
 from app.models.membership import Membership
-from app.models.organization import Organization
 from app.models.team import Team
 from app.models.organization import Organization
 from app.models.user import User
