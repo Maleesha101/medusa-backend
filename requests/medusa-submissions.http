@@ -109,7 +109,17 @@ Content-Type: application/json
   "name": "Submission Test Team"
 }
 
-### 11. Submit an incorrect flag (expected correct=false)
+### 11. Register the team for the active competition (expected 201)
+# @name registerSubmissionTeam
+POST {{baseUrl}}/competitions/{{createSubmissionCompetition.response.body.$.id}}/registrations
+Authorization: Bearer {{participantLogin.response.body.$.access_token}}
+Content-Type: application/json
+
+{
+  "team_id": {{createSubmissionTeam.response.body.$.id}}
+}
+
+### 12. Submit an incorrect flag (expected correct=false)
 POST {{baseUrl}}/challenges/{{createSubmissionChallenge.response.body.$.id}}/submissions
 Authorization: Bearer {{participantLogin.response.body.$.access_token}}
 Content-Type: application/json
@@ -119,7 +129,7 @@ Content-Type: application/json
   "flag": "MEDUSA{wrong_local_test_flag}"
 }
 
-### 12. Submit the correct local test flag (expected correct=true)
+### 13. Submit the correct local test flag (expected correct=true)
 POST {{baseUrl}}/challenges/{{createSubmissionChallenge.response.body.$.id}}/submissions
 Authorization: Bearer {{participantLogin.response.body.$.access_token}}
 Content-Type: application/json
@@ -129,7 +139,7 @@ Content-Type: application/json
   "flag": "MEDUSA{replace_this_with_a_local_test_flag}"
 }
 
-### 13. Submit again after solve (expected 409)
+### 14. Submit again after solve (expected 409)
 POST {{baseUrl}}/challenges/{{createSubmissionChallenge.response.body.$.id}}/submissions
 Authorization: Bearer {{participantLogin.response.body.$.access_token}}
 Content-Type: application/json
@@ -139,14 +149,14 @@ Content-Type: application/json
   "flag": "MEDUSA{replace_this_with_a_local_test_flag}"
 }
 
-### 14. Get the public competition scoreboard (after the correct solve above)
+### 15. Get the public competition scoreboard (after the correct solve above)
 # @name getSubmissionScoreboard
 GET {{baseUrl}}/competitions/{{createSubmissionCompetition.response.body.id}}/scoreboard
 
 ### Expected: entries contains the test team with 200 points and one solve.
 ### If the team submitted only an incorrect flag, its score should be 0.
 
-### 15. Update challenge points after solving (organizer only; optional regression test)
+### 16. Update challenge points after solving (organizer only; optional regression test)
 PATCH {{baseUrl}}/challenges/{{createSubmissionChallenge.response.body.id}}
 Authorization: Bearer {{organizerLogin.response.body.access_token}}
 Content-Type: application/json
@@ -155,7 +165,7 @@ Content-Type: application/json
   "points": 500
 }
 
-### 16. Confirm previously awarded points do not change
+### 17. Confirm previously awarded points do not change
 GET {{baseUrl}}/competitions/{{createSubmissionCompetition.response.body.id}}/scoreboard
 
 ### Expected: the team's score remains 200, because awarded points are snapshotted at solve time.
