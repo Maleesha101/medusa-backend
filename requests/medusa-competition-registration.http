@@ -56,3 +56,17 @@ Content-Type: application/json
 ### - registration not opened yet or already closed: expected 409
 ### - private/draft competition: expected 404
 ### - team from another organization or caller not in team: expected 403
+
+
+### 6. List registrations (organizer/admin token required; expected 200)
+# @name registrationRoster
+GET {{baseUrl}}/competitions/{{competitionId}}/registrations?limit=50&offset=0
+Authorization: Bearer {{organizerToken}}
+
+### 7. Withdraw registration (team captain token required; expected 204 while competition is published)
+DELETE {{baseUrl}}/competitions/{{competitionId}}/registrations/{{teamId}}
+Authorization: Bearer {{memberLogin.response.body.$.access_token}}
+
+### Note
+### Use the current captain's token for withdrawal. A regular team member receives 403.
+### Withdrawal is rejected with 409 if the competition is active/completed/archived or registration has closed.
