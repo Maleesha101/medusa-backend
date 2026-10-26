@@ -317,7 +317,6 @@ def test_incorrect_submission_limit_is_shared_by_team_and_challenge(client, sess
         assert len(attempts) == 10
 
 
-
 def test_unregistered_team_cannot_submit_flags(client, session_factory):
     _, challenge_id, team_id, headers, _ = _prepare_active_challenge(client, session_factory)
     with session_factory() as db:
@@ -343,18 +342,14 @@ def test_unregistered_team_cannot_submit_flags(client, session_factory):
         assert submission_id is None
 
 
-def test_registration_for_another_competition_does_not_allow_submission(
-    client, session_factory
-):
+def test_registration_for_another_competition_does_not_allow_submission(client, session_factory):
     organizer_token, challenge_id, team_id, headers, competition_a_id = _prepare_active_challenge(
         client, session_factory
     )
     with session_factory() as db:
         organizer = db.scalar(select(User).where(User.email == "submission-organizer@example.com"))
         assert organizer is not None
-        organization_id = db.scalar(
-            select(Team.organization_id).where(Team.id == team_id)
-        )
+        organization_id = db.scalar(select(Team.organization_id).where(Team.id == team_id))
         assert organization_id is not None
 
     created_competition = client.post(
