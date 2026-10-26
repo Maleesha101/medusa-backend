@@ -3,6 +3,8 @@ from sqlalchemy import select
 from app.models.audit_event import AuditEvent
 from app.models.challenge_flag import ChallengeFlag
 from app.models.challenge_submission import ChallengeSubmission
+from app.models.competition import Competition
+from app.models.competition_registration import CompetitionRegistration
 from app.models.membership import Membership
 from app.models.organization import Organization
 from app.models.team import Team
@@ -71,6 +73,20 @@ def _create_round(client, token: str, organization_id: int) -> tuple[int, int]:
     return competition_id, round_response.json()["id"]
 
 
+def _register_team_for_competition(session_factory, competition_id: int, team_id: int) -> None:
+    with session_factory() as db:
+        team = db.get(Team, team_id)
+        assert team is not None
+        db.add(
+            CompetitionRegistration(
+                competition_id=competition_id,
+                team_id=team_id,
+                registered_by_user_id=team.captain_user_id,
+            )
+        )
+        db.commit()
+
+
 def _prepare_active_challenge(client, session_factory):
     organizer_email = "submission-organizer@example.com"
     organizer_token, organization_id = _prepare_organizer(client, session_factory, organizer_email)
@@ -133,6 +149,7 @@ def test_flag_lifecycle_and_submission_replay_protection(client, session_factory
     _, challenge_id, team_id, headers, competition_id = _prepare_active_challenge(
         client, session_factory
     )
+    _register_team_for_competition(session_factory, competition_id, team_id)
 
     wrong = client.post(
         f"/api/v1/challenges/{challenge_id}/submissions",
@@ -273,7 +290,10 @@ def test_flag_endpoint_rejects_participant(client, session_factory):
 
 
 def test_incorrect_submission_limit_is_shared_by_team_and_challenge(client, session_factory):
-    _, challenge_id, team_id, headers, _ = _prepare_active_challenge(client, session_factory)
+    _, challenge_id, team_id, headers, competition_id = _prepare_active_challenge(
+        client, session_factory
+    )
+    _register_team_for_competition(session_factory, competition_id, team_id)
 
     for attempt_number in range(10):
         response = client.post(
@@ -302,3 +322,62 @@ def test_incorrect_submission_limit_is_shared_by_team_and_challenge(client, sess
             ).all()
         )
         assert len(attempts) == 10
+
+
+
+def test_unregistered_team_cannot_submit_even_with_matching_organization(client, session_factory):
+    _, challenge_id, team_id, headers, _ = _prepare_active_challenge(client, session_factory)
+
+    response = client.post(
+        f"/api/v1/challenges/{challenge_id}/submissions",
+        json={"team_id": team_id, "flag": "MEDUSA{packet_beacon_found_2026}"},
+        headers=headers,
+    )
+
+    assert response.status_code == 403
+    assert "register" in response.json()["detail"].lower()
+    with session_factory() as db:
+        attempts = list(
+            db.scalars(
+                select(ChallengeSubmission).where(
+                    ChallengeSubmission.challenge_id == challenge_id
+                )
+            ).all()
+        )
+        assert attempts == []
+
+
+def test_registration_must_match_challenge_competition(client, session_factory):
+    _, challenge_id, team_id, headers, competition_id = _prepare_active_challenge(
+        client, session_factory
+    )
+    with session_factory() as db:
+        team = db.get(Team, team_id)
+        assert team is not None
+        other_competition = Competition(
+            organization_id=team.organization_id,
+            created_by_user_id=team.captain_user_id,
+            name="Other Submission CTF",
+            slug="other-submission-ctf",
+            status="active",
+            is_public=True,
+        )
+        db.add(other_competition)
+        db.flush()
+        db.add(
+            CompetitionRegistration(
+                competition_id=other_competition.id,
+                team_id=team_id,
+                registered_by_user_id=team.captain_user_id,
+            )
+        )
+        db.commit()
+
+    response = client.post(
+        f"/api/v1/challenges/{challenge_id}/submissions",
+        json={"team_id": team_id, "flag": "MEDUSA{packet_beacon_found_2026}"},
+        headers=headers,
+    )
+
+    assert response.status_code == 403
+    assert "register" in response.json()["detail"].lower()
