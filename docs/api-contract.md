@@ -35,9 +35,10 @@ All public HTTP endpoints live under /api/v1. Breaking changes require a version
 | POST | /api/v1/organizations/{organization_id}/teams | Create a team; creator becomes captain | Authenticated |
 | GET | /api/v1/teams/{team_id} | Get team details and public membership roster | Public; roster omits member email addresses |
 | POST | /api/v1/teams/{team_id}/join | Join a team as the current user | Authenticated |
-| DELETE | /api/v1/teams/{team_id}/leave | Leave a team | Authenticated; captain cannot leave yet |
+| PUT | /api/v1/teams/{team_id}/captain | Transfer captaincy to an existing team member | Current team captain |
+| DELETE | /api/v1/teams/{team_id}/leave | Leave a team | Authenticated; current captain cannot leave |
 
-Organization slugs must use lowercase letters, digits, and single hyphens. Duplicate slugs return HTTP 409. Team names are unique within an organization; duplicate names return HTTP 409. Joining an inactive or missing organization is not allowed. Duplicate membership returns HTTP 409. A team captain must transfer captaincy before leaving; captaincy transfer is not implemented in this phase.
+Organization slugs must use lowercase letters, digits, and single hyphens. Duplicate slugs return HTTP 409. Team names are unique within an organization; duplicate names return HTTP 409. Joining an inactive or missing organization is not allowed. Duplicate membership returns HTTP 409. A team captain may transfer captaincy only to an existing member. The transfer atomically updates the team captain ID and both membership roles; after transfer, the former captain may leave as a regular member. The current captain cannot leave.
 
 Public team rosters expose member user IDs, roles, and join timestamps only; they do not expose email addresses.\n\n## Competition and round endpoints
 

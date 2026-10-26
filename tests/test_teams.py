@@ -78,12 +78,57 @@ def test_organization_team_membership_flow(client: TestClient, session_factory) 
     )
     assert duplicate_join.status_code == 409
 
+    member_id = next(
+        item["user_id"] for item in joined.json()["members"] if item["role"] == "member"
+    )
+    denied_transfer = client.put(
+        f"/api/v1/teams/{team['id']}/captain",
+        json={"user_id": team["captain_user_id"]},
+        headers=member_headers,
+    )
+    assert denied_transfer.status_code == 403
+
+    self_transfer = client.put(
+        f"/api/v1/teams/{team['id']}/captain",
+        json={"user_id": team["captain_user_id"]},
+        headers=headers,
+    )
+    assert self_transfer.status_code == 409
+
+    nonmember_transfer = client.put(
+        f"/api/v1/teams/{team['id']}/captain",
+        json={"user_id": 999999},
+        headers=headers,
+    )
+    assert nonmember_transfer.status_code == 404
+
+    transfer = client.put(
+        f"/api/v1/teams/{team['id']}/captain",
+        json={"user_id": member_id},
+        headers=headers,
+    )
+    assert transfer.status_code == 200
+    transferred_team = transfer.json()
+    assert transferred_team["captain_user_id"] == member_id
+    assert {item["user_id"]: item["role"] for item in transferred_team["members"]} == {
+        team["captain_user_id"]: "member",
+        member_id: "captain",
+    }
+
     left = client.delete(
+        f"/api/v1/teams/{team['id']}/leave",
+        headers=headers,
+    )
+    assert left.status_code == 204
+    remaining_team = client.get(f"/api/v1/teams/{team['id']}").json()
+    assert len(remaining_team["members"]) == 1
+    assert remaining_team["captain_user_id"] == member_id
+
+    captain_leave = client.delete(
         f"/api/v1/teams/{team['id']}/leave",
         headers=member_headers,
     )
-    assert left.status_code == 204
-    assert len(client.get(f"/api/v1/teams/{team['id']}").json()["members"]) == 1
+    assert captain_leave.status_code == 409
 
 
 def test_duplicate_team_name_is_rejected(client: TestClient, session_factory) -> None:

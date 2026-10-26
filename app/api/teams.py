@@ -11,7 +11,7 @@ from app.models.membership import Membership
 from app.models.organization import Organization
 from app.models.team import Team
 from app.models.user import User
-from app.schemas.teams import MemberPublic, TeamCreate, TeamDetail, TeamPublic
+from app.schemas.teams import CaptainTransfer, MemberPublic, TeamCreate, TeamDetail, TeamPublic
 
 router = APIRouter(tags=["teams"])
 
@@ -134,6 +134,52 @@ def join_team(
             status_code=409,
             detail="You are already a member of this team",
         ) from None
+    return _team_detail(db, team)
+
+
+@router.put("/teams/{team_id}/captain", response_model=TeamDetail)
+def transfer_captaincy(
+    team_id: int,
+    payload: CaptainTransfer,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> TeamDetail:
+    """Transfer captaincy to an existing member of the team."""
+    team = db.scalar(select(Team).where(Team.id == team_id).with_for_update())
+    if team is None:
+        raise HTTPException(status_code=404, detail="Team not found")
+    _active_organization(db, team.organization_id)
+    if team.captain_user_id != user.id:
+        raise HTTPException(
+            status_code=403,
+            detail="Only the current captain can transfer captaincy",
+        )
+
+    current_membership = db.scalar(
+        select(Membership).where(
+            Membership.team_id == team_id,
+            Membership.user_id == user.id,
+        )
+    )
+    if current_membership is None or current_membership.role != "captain":
+        raise HTTPException(status_code=409, detail="Team captain membership is inconsistent")
+    if payload.user_id == user.id:
+        raise HTTPException(status_code=409, detail="Cannot transfer captaincy to yourself")
+
+    target_membership = db.scalar(
+        select(Membership).where(
+            Membership.team_id == team_id,
+            Membership.user_id == payload.user_id,
+        )
+    )
+    if target_membership is None:
+        raise HTTPException(status_code=404, detail="Target user is not a member of this team")
+
+    current_membership.role = "member"
+    target_membership.role = "captain"
+    team.captain_user_id = target_membership.user_id
+    db.commit()
+    db.refresh(team)
     return _team_detail(db, team)
 
 
