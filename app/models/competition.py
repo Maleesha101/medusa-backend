@@ -26,7 +26,10 @@ class Competition(Base):
             "status IN ('draft', 'published', 'active', 'completed', 'archived')",
             name="ck_competitions_status",
         ),
-        CheckConstraint("max_teams IS NULL OR max_teams > 0", name="ck_competitions_max_teams_positive"),
+        CheckConstraint(
+            "max_teams IS NULL OR max_teams > 0",
+            name="ck_competitions_max_teams_positive",
+        ),
         UniqueConstraint("slug", name="uq_competitions_slug"),
     )
 
