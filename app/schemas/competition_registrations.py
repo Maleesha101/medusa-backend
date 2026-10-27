@@ -17,3 +17,14 @@ class CompetitionRegistrationPublic(BaseModel):
     team_id: int
     registered_by_user_id: int
     registered_at: datetime
+
+
+class CompetitionRegistrationRosterItem(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    competition_id: int
+    team_id: int
+    team_name: str
+    registered_by_user_id: int
+    registered_at: datetime

@@ -124,3 +124,13 @@ Access tokens include a unique token identifier (`jti`). `POST /api/v1/auth/logo
 | POST | /api/v1/competitions/{competition_id}/registrations | Register a team for a public competition | Authenticated member of the team |
 
 The request body contains `team_id`. Registration is available only for public competitions in `published` or `active` status and only during the configured registration window. If `registration_opens_at` is unset, registration is open from publication; if `registration_closes_at` is unset, there is no closing-time limit. The team must belong to the competition's organization, and the authenticated caller must be a member of that team. A team can register only once per competition; a database unique constraint enforces this invariant. A hidden or unpublished competition returns HTTP 404, a closed/not-yet-open window returns HTTP 409, an ineligible team or non-member caller returns HTTP 403, and duplicate registration returns HTTP 409. Successful registration returns HTTP 201 with the registration ID, competition ID, team ID, registering user ID, and registration timestamp.
+
+
+### Registration roster and withdrawal
+
+| Method | Path | Purpose | Access |
+| --- | --- | --- | --- |
+| GET | /api/v1/competitions/{competition_id}/registrations?limit=50&offset=0 | List a competition's registrations in stable pages | Organizer/admin with access to the competition's organization |
+| DELETE | /api/v1/competitions/{competition_id}/registrations/{team_id} | Withdraw a team's registration | Current team captain |
+
+The roster is private and includes registration ID, competition ID, team ID/name, registering user ID, and timestamp; it does not include email addresses. The page size defaults to 50 and is limited to 100. Organizers are restricted to organizations they created; admins can manage registrations across organizations. Only the current captain can withdraw their team's registration, while the competition remains in `published` status and the registration close time has not passed. Withdrawal is rejected with HTTP 409 after the competition activates or the window closes, and with HTTP 403 for a non-captain. A withdrawn team loses its registration and therefore cannot submit challenge flags for that competition unless it registers again while registration remains open.
