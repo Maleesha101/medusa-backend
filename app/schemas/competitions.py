@@ -14,6 +14,7 @@ class CompetitionCreate(BaseModel):
     slug: str = Field(min_length=2, max_length=100, pattern=r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
     description: str | None = Field(default=None, max_length=5000)
     is_public: bool = False
+    max_teams: int | None = Field(default=None, gt=0)
     registration_opens_at: datetime | None = None
     registration_closes_at: datetime | None = None
     starts_at: datetime | None = None
@@ -42,6 +43,7 @@ class CompetitionPublic(BaseModel):
     description: str | None
     status: CompetitionStatus
     is_public: bool
+    max_teams: int | None
     registration_opens_at: datetime | None
     registration_closes_at: datetime | None
     starts_at: datetime | None
