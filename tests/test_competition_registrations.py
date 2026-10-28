@@ -1,8 +1,9 @@
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from app.models.competition import Competition
+from app.models.competition_registration import CompetitionRegistration
 from app.models.membership import Membership
 from app.models.organization import Organization
 from app.models.team import Team
@@ -24,7 +25,7 @@ def register_and_login(client, email: str) -> str:
     return token_response.json()["access_token"]
 
 
-def prepare_registration(client, session_factory, *, closes_at=None, opens_at=None):
+def prepare_registration(client, session_factory, *, closes_at=None, opens_at=None, max_teams=None):
     token = register_and_login(client, "team-captain@example.com")
     with session_factory() as db:
         user = db.scalar(select(User).where(User.email == "team-captain@example.com"))
@@ -51,6 +52,7 @@ def prepare_registration(client, session_factory, *, closes_at=None, opens_at=No
             slug="registration-ctf",
             status="published",
             is_public=True,
+            max_teams=max_teams,
             registration_opens_at=opens_at,
             registration_closes_at=closes_at,
         )
@@ -201,3 +203,62 @@ def test_closed_registration_window_returns_conflict(client, session_factory):
     )
 
     assert response.status_code == 409
+
+
+def test_registration_capacity_rejects_additional_team(client, session_factory):
+    token, (competition_id, team_id, organization_id, user_id) = prepare_registration(
+        client, session_factory, max_teams=1
+    )
+    headers = {"Authorization": f"Bearer {token}"}
+    path = f"/api/v1/competitions/{competition_id}/registrations"
+    first = client.post(path, json={"team_id": team_id}, headers=headers)
+    assert first.status_code == 201
+
+    with session_factory() as db:
+        second_team = Team(
+            organization_id=organization_id,
+            name="Registration Team Two",
+            captain_user_id=user_id,
+        )
+        db.add(second_team)
+        db.flush()
+        db.add(Membership(team_id=second_team.id, user_id=user_id, role="captain"))
+        db.commit()
+        second_team_id = second_team.id
+
+    second = client.post(path, json={"team_id": second_team_id}, headers=headers)
+
+    assert second.status_code == 409
+    assert "capacity" in second.json()["detail"].lower()
+    with session_factory() as db:
+        registrations = db.scalar(
+            select(func.count(CompetitionRegistration.id)).where(
+                CompetitionRegistration.competition_id == competition_id
+            )
+        )
+        assert registrations == 1
+
+
+def test_registration_capacity_is_unlimited_when_not_configured(client, session_factory):
+    token, (competition_id, team_id, organization_id, user_id) = prepare_registration(
+        client, session_factory
+    )
+    headers = {"Authorization": f"Bearer {token}"}
+    path = f"/api/v1/competitions/{competition_id}/registrations"
+    assert client.post(path, json={"team_id": team_id}, headers=headers).status_code == 201
+
+    with session_factory() as db:
+        second_team = Team(
+            organization_id=organization_id,
+            name="Registration Team Two",
+            captain_user_id=user_id,
+        )
+        db.add(second_team)
+        db.flush()
+        db.add(Membership(team_id=second_team.id, user_id=user_id, role="captain"))
+        db.commit()
+        second_team_id = second_team.id
+
+    second = client.post(path, json={"team_id": second_team_id}, headers=headers)
+
+    assert second.status_code == 201

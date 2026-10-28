@@ -78,3 +78,8 @@ Authorization: Bearer {{memberLogin.response.body.$.access_token}}
 ### Note
 ### Use the current captain's token for withdrawal. A regular team member receives 403.
 ### Withdrawal is rejected with 409 if the competition is active/completed/archived or registration has closed.
+
+
+### Capacity behavior
+### The competition may optionally set max_teams to a positive integer when created.
+### Omit max_teams or use null for unlimited registrations. When capacity is full, a new team registration returns 409.

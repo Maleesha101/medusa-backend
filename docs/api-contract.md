@@ -134,3 +134,8 @@ The request body contains `team_id`. Registration is available only for public c
 | DELETE | /api/v1/competitions/{competition_id}/registrations/{team_id} | Withdraw a team's registration | Current team captain |
 
 The roster is private and includes registration ID, competition ID, team ID/name, registering user ID, and timestamp; it does not include email addresses. The page size defaults to 50 and is limited to 100. Organizers are restricted to organizations they created; admins can manage registrations across organizations. Only the current captain can withdraw their team's registration, while the competition remains in `published` status and the registration close time has not passed. Withdrawal is rejected with HTTP 409 after the competition activates or the window closes, and with HTTP 403 for a non-captain. A withdrawn team loses its registration and therefore cannot submit challenge flags for that competition unless it registers again while registration remains open.
+
+
+### Competition team capacity
+
+Competition creation accepts optional `max_teams`, a positive integer that caps the number of registered teams. Omit it or set it to `null` for unlimited registration. When the configured capacity is reached, further registrations return HTTP 409 with a capacity error and do not create a registration. Capacity is checked while locking the competition row on databases that support row-level locks, so concurrent registrations are serialized on PostgreSQL. The database also retains the unique constraint preventing the same team from registering twice.

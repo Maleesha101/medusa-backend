@@ -3,7 +3,7 @@
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -48,7 +48,9 @@ def register_team_for_competition(
     user: User = Depends(get_current_user),
 ) -> CompetitionRegistration:
     """Register a team if its member is eligible and the window is open."""
-    competition = db.get(Competition, competition_id)
+    competition = db.scalar(
+        select(Competition).where(Competition.id == competition_id).with_for_update()
+    )
     if (
         competition is None
         or not competition.is_public
@@ -80,6 +82,15 @@ def register_team_for_competition(
     )
     if membership is None:
         raise HTTPException(status_code=403, detail="You are not a member of this team")
+
+    if competition.max_teams is not None:
+        registered_count = db.scalar(
+            select(func.count(CompetitionRegistration.id)).where(
+                CompetitionRegistration.competition_id == competition.id
+            )
+        )
+        if registered_count is not None and registered_count >= competition.max_teams:
+            raise HTTPException(status_code=409, detail="Competition has reached team capacity")
 
     registration = CompetitionRegistration(
         competition_id=competition.id,
