@@ -25,8 +25,23 @@ def register_and_login(client, email: str) -> str:
     return token_response.json()["access_token"]
 
 
-def prepare_registration(client, session_factory, *, closes_at=None, opens_at=None, max_teams=None):
+def prepare_registration(
+    client,
+    session_factory,
+    *,
+    closes_at=None,
+    opens_at=None,
+    max_teams=None,
+    min_team_size=None,
+    max_team_size=None,
+    extra_members=0,
+):
     token = register_and_login(client, "team-captain@example.com")
+    extra_member_emails = [
+        f"team-size-member-{index}@example.com" for index in range(extra_members)
+    ]
+    for email in extra_member_emails:
+        register_and_login(client, email)
     with session_factory() as db:
         user = db.scalar(select(User).where(User.email == "team-captain@example.com"))
         assert user is not None
@@ -45,6 +60,10 @@ def prepare_registration(client, session_factory, *, closes_at=None, opens_at=No
         db.add(team)
         db.flush()
         db.add(Membership(team_id=team.id, user_id=user.id, role="captain"))
+        for email in extra_member_emails:
+            member = db.scalar(select(User).where(User.email == email))
+            assert member is not None
+            db.add(Membership(team_id=team.id, user_id=member.id, role="member"))
         competition = Competition(
             organization_id=organization.id,
             created_by_user_id=user.id,
@@ -53,6 +72,8 @@ def prepare_registration(client, session_factory, *, closes_at=None, opens_at=No
             status="published",
             is_public=True,
             max_teams=max_teams,
+            min_team_size=min_team_size,
+            max_team_size=max_team_size,
             registration_opens_at=opens_at,
             registration_closes_at=closes_at,
         )
@@ -262,3 +283,44 @@ def test_registration_capacity_is_unlimited_when_not_configured(client, session_
     second = client.post(path, json={"team_id": second_team_id}, headers=headers)
 
     assert second.status_code == 201
+
+
+def test_registration_rejects_team_below_minimum_size(client, session_factory):
+    token, (competition_id, team_id, _, _) = prepare_registration(
+        client, session_factory, min_team_size=2
+    )
+    response = client.post(
+        f"/api/v1/competitions/{competition_id}/registrations",
+        json={"team_id": team_id},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+
+    assert response.status_code == 409
+    assert "at least 2 members" in response.json()["detail"]
+
+
+def test_registration_rejects_team_above_maximum_size(client, session_factory):
+    token, (competition_id, team_id, _, _) = prepare_registration(
+        client, session_factory, max_team_size=1, extra_members=1
+    )
+    response = client.post(
+        f"/api/v1/competitions/{competition_id}/registrations",
+        json={"team_id": team_id},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+
+    assert response.status_code == 409
+    assert "more than 1 members" in response.json()["detail"]
+
+
+def test_registration_accepts_team_within_size_bounds(client, session_factory):
+    token, (competition_id, team_id, _, _) = prepare_registration(
+        client, session_factory, min_team_size=1, max_team_size=2
+    )
+    response = client.post(
+        f"/api/v1/competitions/{competition_id}/registrations",
+        json={"team_id": team_id},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+
+    assert response.status_code == 201
