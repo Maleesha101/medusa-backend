@@ -139,3 +139,8 @@ The roster is private and includes registration ID, competition ID, team ID/name
 ### Competition team capacity
 
 Competition creation accepts optional `max_teams`, a positive integer that caps the number of registered teams. Omit it or set it to `null` for unlimited registration. When the configured capacity is reached, further registrations return HTTP 409 with a capacity error and do not create a registration. Capacity is checked while locking the competition row on databases that support row-level locks, so concurrent registrations are serialized on PostgreSQL. The database also retains the unique constraint preventing the same team from registering twice.
+
+
+### Competition team-size eligibility
+
+Competition creation may specify `min_team_size` and/or `max_team_size`, both positive integers. When both are set, the minimum must not exceed the maximum. The API checks the team's current membership count at registration time. Teams below the minimum or above the maximum receive HTTP 409 and are not registered. Leaving either bound unset disables that bound; leaving both unset preserves the existing behavior. These settings are independent of `max_teams`, which limits the total number of teams registered for a competition.
