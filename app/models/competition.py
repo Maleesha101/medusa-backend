@@ -30,6 +30,18 @@ class Competition(Base):
             "max_teams IS NULL OR max_teams > 0",
             name="ck_competitions_max_teams_positive",
         ),
+        CheckConstraint(
+            "min_team_size IS NULL OR min_team_size > 0",
+            name="ck_competitions_min_team_size_positive",
+        ),
+        CheckConstraint(
+            "max_team_size IS NULL OR max_team_size > 0",
+            name="ck_competitions_max_team_size_positive",
+        ),
+        CheckConstraint(
+            "min_team_size IS NULL OR max_team_size IS NULL OR min_team_size <= max_team_size",
+            name="ck_competitions_team_size_bounds",
+        ),
         UniqueConstraint("slug", name="uq_competitions_slug"),
     )
 
@@ -46,6 +58,8 @@ class Competition(Base):
     status: Mapped[str] = mapped_column(String(16), nullable=False, default="draft")
     is_public: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     max_teams: Mapped[int | None] = mapped_column(nullable=True)
+    min_team_size: Mapped[int | None] = mapped_column(nullable=True)
+    max_team_size: Mapped[int | None] = mapped_column(nullable=True)
     registration_opens_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     registration_closes_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     starts_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
