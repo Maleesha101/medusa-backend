@@ -418,3 +418,39 @@ def test_registration_for_another_competition_does_not_allow_submission(client, 
 
     assert competition_a_id != competition_b_id
     assert response.status_code == 409
+
+
+def test_scoreboard_includes_registered_team_before_first_submission(client, session_factory):
+    _, _, existing_team_id, _, competition_id = _prepare_active_challenge(client, session_factory)
+
+    with session_factory() as db:
+        existing_team = db.get(Team, existing_team_id)
+        assert existing_team is not None
+        organizer = db.get(User, existing_team.captain_user_id)
+        assert organizer is not None
+        new_team = Team(
+            organization_id=existing_team.organization_id,
+            name="First Blood Pending",
+            captain_user_id=organizer.id,
+        )
+        db.add(new_team)
+        db.flush()
+        db.add(Membership(team_id=new_team.id, user_id=organizer.id, role="captain"))
+        db.add(
+            CompetitionRegistration(
+                competition_id=competition_id,
+                team_id=new_team.id,
+                registered_by_user_id=organizer.id,
+            )
+        )
+        db.commit()
+        new_team_id = new_team.id
+
+    response = client.get(f"/api/v1/competitions/{competition_id}/scoreboard")
+
+    assert response.status_code == 200
+    entries = response.json()["entries"]
+    pending = next(entry for entry in entries if entry["team_id"] == new_team_id)
+    assert pending["points"] == 0
+    assert pending["solves"] == 0
+    assert pending["last_solved_at"] is None
