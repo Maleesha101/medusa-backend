@@ -123,3 +123,22 @@ def test_competition_schedule_validation(client: TestClient, session_factory) ->
         headers={"Authorization": f"Bearer {token}"},
     )
     assert response.status_code == 422
+
+
+def test_competition_rejects_minimum_team_size_greater_than_maximum(client, session_factory):
+    token, organization_id = prepare_organizer(
+        client, session_factory, "team-size-config@example.com"
+    )
+    response = client.post(
+        "/api/v1/competitions",
+        json={
+            "organization_id": organization_id,
+            "name": "Invalid Team Bounds",
+            "slug": "invalid-team-bounds",
+            "min_team_size": 5,
+            "max_team_size": 2,
+        },
+        headers={"Authorization": f"Bearer {token}"},
+    )
+
+    assert response.status_code == 422
