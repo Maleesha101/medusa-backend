@@ -1,7 +1,10 @@
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
+from app.models.competition import Competition
+from app.models.competition_registration import CompetitionRegistration
 from app.models.organization import Organization
+from app.models.team import Team
 from app.models.user import User
 
 
@@ -72,6 +75,44 @@ def test_organization_team_membership_flow(client: TestClient, session_factory) 
     assert joined.status_code == 200
     assert len(joined.json()["members"]) == 2
 
+    with session_factory() as db:
+        team_record = db.get(Team, team["id"])
+        assert team_record is not None
+        competition = Competition(
+            organization_id=organization_id,
+            created_by_user_id=team["captain_user_id"],
+            name="Roster Lock CTF",
+            slug="roster-lock-ctf",
+            status="published",
+            is_public=True,
+        )
+        db.add(competition)
+        db.flush()
+        db.add(
+            CompetitionRegistration(
+                competition_id=competition.id,
+                team_id=team["id"],
+                registered_by_user_id=team["captain_user_id"],
+            )
+        )
+        db.commit()
+        competition_id = competition.id
+
+    extra_token = register_and_login(client, "extra-member@example.com")
+    locked_join = client.post(
+        f"/api/v1/teams/{team['id']}/join",
+        headers={"Authorization": f"Bearer {extra_token}"},
+    )
+    assert locked_join.status_code == 409
+    assert "membership is locked" in locked_join.json()["detail"]
+
+    locked_leave = client.delete(
+        f"/api/v1/teams/{team['id']}/leave",
+        headers=member_headers,
+    )
+    assert locked_leave.status_code == 409
+    assert "membership is locked" in locked_leave.json()["detail"]
+
     duplicate_join = client.post(
         f"/api/v1/teams/{team['id']}/join",
         headers=member_headers,
@@ -114,6 +155,23 @@ def test_organization_team_membership_flow(client: TestClient, session_factory) 
         team["captain_user_id"]: "member",
         member_id: "captain",
     }
+
+    locked_former_captain_leave = client.delete(
+        f"/api/v1/teams/{team['id']}/leave",
+        headers=headers,
+    )
+    assert locked_former_captain_leave.status_code == 409
+
+    with session_factory() as db:
+        registration = db.scalar(
+            select(CompetitionRegistration).where(
+                CompetitionRegistration.competition_id == competition_id,
+                CompetitionRegistration.team_id == team["id"],
+            )
+        )
+        assert registration is not None
+        db.delete(registration)
+        db.commit()
 
     left = client.delete(
         f"/api/v1/teams/{team['id']}/leave",

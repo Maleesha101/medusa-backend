@@ -144,3 +144,8 @@ Competition creation accepts optional `max_teams`, a positive integer that caps 
 ### Competition team-size eligibility
 
 Competition creation may specify `min_team_size` and/or `max_team_size`, both positive integers. When both are set, the minimum must not exceed the maximum. The API checks the team's current membership count at registration time. Teams below the minimum or above the maximum receive HTTP 409 and are not registered. Leaving either bound unset disables that bound; leaving both unset preserves the existing behavior. These settings are independent of `max_teams`, which limits the total number of teams registered for a competition.
+
+
+### Registered team roster locking
+
+A team cannot add or remove members while it has a registration for a competition in `published` or `active` status. Join and leave requests return HTTP 409 and do not change membership. Captaincy transfer remains available because it does not change roster size. Membership changes become available again after the team withdraws its registration or the associated competition is completed or archived.

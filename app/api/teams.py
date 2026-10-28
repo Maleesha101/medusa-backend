@@ -7,6 +7,8 @@ from sqlalchemy.orm import Session
 
 from app.api.dependencies import get_current_user
 from app.db.session import get_db
+from app.models.competition import Competition
+from app.models.competition_registration import CompetitionRegistration
 from app.models.membership import Membership
 from app.models.organization import Organization
 from app.models.team import Team
@@ -21,6 +23,20 @@ def _active_organization(db: Session, organization_id: int) -> Organization:
     if organization is None or not organization.is_active:
         raise HTTPException(status_code=404, detail="Organization not found")
     return organization
+
+
+def _has_live_competition_registration(db: Session, team_id: int) -> bool:
+    """Return whether a team is registered for a published or active competition."""
+    registration_id = db.scalar(
+        select(CompetitionRegistration.id)
+        .join(Competition, Competition.id == CompetitionRegistration.competition_id)
+        .where(
+            CompetitionRegistration.team_id == team_id,
+            Competition.status.in_(("published", "active")),
+        )
+        .limit(1)
+    )
+    return registration_id is not None
 
 
 def _team_detail(db: Session, team: Team) -> TeamDetail:
@@ -117,6 +133,13 @@ def join_team(
     if team is None:
         raise HTTPException(status_code=404, detail="Team not found")
     _active_organization(db, team.organization_id)
+    if _has_live_competition_registration(db, team_id):
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "Team membership is locked while registered for a published or active competition"
+            ),
+        )
     existing = db.scalar(
         select(Membership).where(
             Membership.team_id == team_id,
@@ -201,6 +224,13 @@ def leave_team(
     )
     if membership is None:
         raise HTTPException(status_code=404, detail="Team membership not found")
+    if _has_live_competition_registration(db, team_id):
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "Team membership is locked while registered for a published or active competition"
+            ),
+        )
     if membership.role == "captain":
         raise HTTPException(
             status_code=409,
