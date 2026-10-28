@@ -136,7 +136,9 @@ def join_team(
     if _has_live_competition_registration(db, team_id):
         raise HTTPException(
             status_code=409,
-            detail="Team membership is locked while registered for a published or active competition",
+            detail=(
+                "Team membership is locked while registered for a published or active competition"
+            ),
         )
     existing = db.scalar(
         select(Membership).where(
@@ -225,7 +227,9 @@ def leave_team(
     if _has_live_competition_registration(db, team_id):
         raise HTTPException(
             status_code=409,
-            detail="Team membership is locked while registered for a published or active competition",
+            detail=(
+                "Team membership is locked while registered for a published or active competition"
+            ),
         )
     if membership.role == "captain":
         raise HTTPException(
