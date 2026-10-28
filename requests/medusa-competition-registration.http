@@ -89,3 +89,10 @@ Authorization: Bearer {{memberLogin.response.body.$.access_token}}
 ### Configure min_team_size and max_team_size in the competition create request body, for example:
 ### { "organization_id": 1, "name": "Team Size CTF", "slug": "team-size-ctf", "is_public": true, "min_team_size": 2, "max_team_size": 5 }
 ### Registration returns 409 if the team currently has fewer than 2 or more than 5 members.
+
+
+### Team roster lock checks
+### While a team is registered for a published/active competition:
+### POST {{baseUrl}}/teams/{{teamId}}/join returns 409 for a new member.
+### DELETE {{baseUrl}}/teams/{{teamId}}/leave returns 409 for an existing non-captain member.
+### Captain transfer remains allowed; membership changes resume after withdrawal or competition completion/archive.
