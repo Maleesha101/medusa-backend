@@ -18,17 +18,17 @@ depends_on: str | Sequence[str] | None = None
 
 def upgrade() -> None:
     op.add_column("competitions", sa.Column("max_teams", sa.Integer(), nullable=True))
-    op.create_check_constraint(
-        "ck_competitions_max_teams_positive",
-        "competitions",
-        "max_teams IS NULL OR max_teams > 0",
-    )
+    with op.batch_alter_table("competitions") as batch_op:
+        batch_op.create_check_constraint(
+            "ck_competitions_max_teams_positive",
+            "max_teams IS NULL OR max_teams > 0",
+        )
 
 
 def downgrade() -> None:
-    op.drop_constraint(
-        "ck_competitions_max_teams_positive",
-        "competitions",
-        type_="check",
-    )
-    op.drop_column("competitions", "max_teams")
+    with op.batch_alter_table("competitions") as batch_op:
+        batch_op.drop_constraint(
+            "ck_competitions_max_teams_positive",
+            type_="check",
+        )
+        batch_op.drop_column("max_teams")
