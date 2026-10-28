@@ -75,6 +75,8 @@ def create_competition(
         description=payload.description,
         is_public=payload.is_public,
         max_teams=payload.max_teams,
+        min_team_size=payload.min_team_size,
+        max_team_size=payload.max_team_size,
         status="draft",
         registration_opens_at=payload.registration_opens_at,
         registration_closes_at=payload.registration_closes_at,
