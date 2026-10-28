@@ -83,6 +83,28 @@ def register_team_for_competition(
     if membership is None:
         raise HTTPException(status_code=403, detail="You are not a member of this team")
 
+    team_size = db.scalar(
+        select(func.count(Membership.user_id)).where(Membership.team_id == team.id)
+    )
+    if (
+        competition.min_team_size is not None
+        and team_size is not None
+        and team_size < competition.min_team_size
+    ):
+        raise HTTPException(
+            status_code=409,
+            detail=f"Team must have at least {competition.min_team_size} members",
+        )
+    if (
+        competition.max_team_size is not None
+        and team_size is not None
+        and team_size > competition.max_team_size
+    ):
+        raise HTTPException(
+            status_code=409,
+            detail=f"Team cannot have more than {competition.max_team_size} members",
+        )
+
     if competition.max_teams is not None:
         registered_count = db.scalar(
             select(func.count(CompetitionRegistration.id)).where(

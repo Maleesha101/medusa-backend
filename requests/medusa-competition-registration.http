@@ -83,3 +83,9 @@ Authorization: Bearer {{memberLogin.response.body.$.access_token}}
 ### Capacity behavior
 ### The competition may optionally set max_teams to a positive integer when created.
 ### Omit max_teams or use null for unlimited registrations. When capacity is full, a new team registration returns 409.
+
+
+### Team-size eligibility
+### Configure min_team_size and max_team_size in the competition create request body, for example:
+### { "organization_id": 1, "name": "Team Size CTF", "slug": "team-size-ctf", "is_public": true, "min_team_size": 2, "max_team_size": 5 }
+### Registration returns 409 if the team currently has fewer than 2 or more than 5 members.
