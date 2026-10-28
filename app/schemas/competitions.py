@@ -15,6 +15,8 @@ class CompetitionCreate(BaseModel):
     description: str | None = Field(default=None, max_length=5000)
     is_public: bool = False
     max_teams: int | None = Field(default=None, gt=0)
+    min_team_size: int | None = Field(default=None, gt=0)
+    max_team_size: int | None = Field(default=None, gt=0)
     registration_opens_at: datetime | None = None
     registration_closes_at: datetime | None = None
     starts_at: datetime | None = None
@@ -29,6 +31,12 @@ class CompetitionCreate(BaseModel):
         for start, end in pairs:
             if start is not None and end is not None and start >= end:
                 raise ValueError("Schedule start must be earlier than end")
+        if (
+            self.min_team_size is not None
+            and self.max_team_size is not None
+            and self.min_team_size > self.max_team_size
+        ):
+            raise ValueError("Minimum team size cannot exceed maximum team size")
         return self
 
 
@@ -44,6 +52,8 @@ class CompetitionPublic(BaseModel):
     status: CompetitionStatus
     is_public: bool
     max_teams: int | None
+    min_team_size: int | None
+    max_team_size: int | None
     registration_opens_at: datetime | None
     registration_closes_at: datetime | None
     starts_at: datetime | None
