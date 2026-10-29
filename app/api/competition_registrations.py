@@ -18,13 +18,13 @@ from app.models.competition_registration import CompetitionRegistration
 from app.models.membership import Membership
 from app.models.team import Team
 from app.models.user import User
-from app.services.audit import record_audit_event
 from app.schemas.competition_registrations import (
     CompetitionRegistrationCreate,
     CompetitionRegistrationMineItem,
     CompetitionRegistrationPublic,
     CompetitionRegistrationRosterItem,
 )
+from app.services.audit import record_audit_event
 
 router = APIRouter(prefix="/competitions", tags=["competition registrations"])
 
