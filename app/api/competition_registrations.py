@@ -133,7 +133,6 @@ def register_team_for_competition(
     return registration
 
 
-
 @router.get(
     "/{competition_id}/registrations/mine",
     response_model=list[CompetitionRegistrationMineItem],
