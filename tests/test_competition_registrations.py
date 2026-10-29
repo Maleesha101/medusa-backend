@@ -430,17 +430,13 @@ def test_duplicate_registration_does_not_create_success_audit_event(client, sess
         from app.models.audit_event import AuditEvent
 
         events = db.scalars(
-            select(AuditEvent).where(
-                AuditEvent.action == "competition.registration_created"
-            )
+            select(AuditEvent).where(AuditEvent.action == "competition.registration_created")
         ).all()
         assert len(events) == 1
 
 
 def test_registration_withdrawal_is_audited(client, session_factory):
-    token, (competition_id, team_id, _, user_id) = prepare_registration(
-        client, session_factory
-    )
+    token, (competition_id, team_id, _, user_id) = prepare_registration(client, session_factory)
     headers = {"Authorization": f"Bearer {token}"}
     created = client.post(
         f"/api/v1/competitions/{competition_id}/registrations",
@@ -458,8 +454,7 @@ def test_registration_withdrawal_is_audited(client, session_factory):
         from app.models.audit_event import AuditEvent
 
         events = db.scalars(
-            select(AuditEvent)
-            .where(AuditEvent.action == "competition.registration_withdrawn")
+            select(AuditEvent).where(AuditEvent.action == "competition.registration_withdrawn")
         ).all()
         assert len(events) == 1
         event = events[0]
@@ -497,8 +492,6 @@ def test_denied_withdrawal_does_not_create_withdrawal_audit_event(client, sessio
         from app.models.audit_event import AuditEvent
 
         events = db.scalars(
-            select(AuditEvent).where(
-                AuditEvent.action == "competition.registration_withdrawn"
-            )
+            select(AuditEvent).where(AuditEvent.action == "competition.registration_withdrawn")
         ).all()
         assert events == []
