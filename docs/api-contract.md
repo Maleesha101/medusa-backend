@@ -153,3 +153,8 @@ A team cannot add or remove members while it has a registration for a competitio
 
 
 Participants can use `GET /api/v1/competitions/{competition_id}/registrations/mine` to check their own team's registration status. The response includes only registrations for teams where the caller currently has membership, and contains no email addresses or registering-user identifiers. It returns an empty list when no matching registrations exist and HTTP 404 for missing, private, draft, or archived competitions.
+
+
+### Registration lifecycle audit events
+
+Successful team registration writes `competition.registration_created`; successful captain withdrawal writes `competition.registration_withdrawn`. Each event is committed in the same database transaction as its registration change and records only the competition ID, team ID, and registration ID as details, alongside the actor metadata maintained by the audit helper. Failed or denied operations do not produce success events. No emails, credentials, tokens, flags, or request bodies are included.

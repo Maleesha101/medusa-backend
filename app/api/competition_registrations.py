@@ -24,6 +24,7 @@ from app.schemas.competition_registrations import (
     CompetitionRegistrationPublic,
     CompetitionRegistrationRosterItem,
 )
+from app.services.audit import record_audit_event
 
 router = APIRouter(prefix="/competitions", tags=["competition registrations"])
 
@@ -122,6 +123,19 @@ def register_team_for_competition(
     )
     db.add(registration)
     try:
+        db.flush()
+        record_audit_event(
+            db,
+            actor=user,
+            action="competition.registration_created",
+            resource_type="competition_registration",
+            resource_id=registration.id,
+            details={
+                "competition_id": competition.id,
+                "team_id": team.id,
+                "registration_id": registration.id,
+            },
+        )
         db.commit()
     except IntegrityError:
         db.rollback()
@@ -250,5 +264,18 @@ def withdraw_team_registration(
     )
     if registration is None:
         raise HTTPException(status_code=404, detail="Team registration not found")
+    registration_id = registration.id
     db.delete(registration)
+    record_audit_event(
+        db,
+        actor=user,
+        action="competition.registration_withdrawn",
+        resource_type="competition_registration",
+        resource_id=registration_id,
+        details={
+            "competition_id": competition.id,
+            "team_id": team.id,
+            "registration_id": registration_id,
+        },
+    )
     db.commit()

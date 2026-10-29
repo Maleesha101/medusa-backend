@@ -386,3 +386,112 @@ def test_my_registrations_hides_private_competition(client, session_factory):
     )
 
     assert response.status_code == 404
+
+
+def test_registration_creation_is_audited_atomically(client, session_factory):
+    token, (competition_id, team_id, _, user_id) = prepare_registration(client, session_factory)
+    response = client.post(
+        f"/api/v1/competitions/{competition_id}/registrations",
+        json={"team_id": team_id},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert response.status_code == 201
+
+    with session_factory() as db:
+        from app.models.audit_event import AuditEvent
+
+        events = db.scalars(
+            select(AuditEvent).where(
+                AuditEvent.action == "competition.registration_created",
+                AuditEvent.resource_id == response.json()["id"],
+            )
+        ).all()
+        assert len(events) == 1
+        event = events[0]
+        assert event.actor_user_id == user_id
+        assert event.details == {
+            "competition_id": competition_id,
+            "team_id": team_id,
+            "registration_id": response.json()["id"],
+        }
+        assert event.details is not None
+        assert "email" not in str(event.details)
+
+
+def test_duplicate_registration_does_not_create_success_audit_event(client, session_factory):
+    token, (competition_id, team_id, _, _) = prepare_registration(client, session_factory)
+    headers = {"Authorization": f"Bearer {token}"}
+    path = f"/api/v1/competitions/{competition_id}/registrations"
+    assert client.post(path, json={"team_id": team_id}, headers=headers).status_code == 201
+    duplicate = client.post(path, json={"team_id": team_id}, headers=headers)
+    assert duplicate.status_code == 409
+
+    with session_factory() as db:
+        from app.models.audit_event import AuditEvent
+
+        events = db.scalars(
+            select(AuditEvent).where(AuditEvent.action == "competition.registration_created")
+        ).all()
+        assert len(events) == 1
+
+
+def test_registration_withdrawal_is_audited(client, session_factory):
+    token, (competition_id, team_id, _, user_id) = prepare_registration(client, session_factory)
+    headers = {"Authorization": f"Bearer {token}"}
+    created = client.post(
+        f"/api/v1/competitions/{competition_id}/registrations",
+        json={"team_id": team_id},
+        headers=headers,
+    )
+    assert created.status_code == 201
+    withdrawn = client.delete(
+        f"/api/v1/competitions/{competition_id}/registrations/{team_id}",
+        headers=headers,
+    )
+    assert withdrawn.status_code == 204
+
+    with session_factory() as db:
+        from app.models.audit_event import AuditEvent
+
+        events = db.scalars(
+            select(AuditEvent).where(AuditEvent.action == "competition.registration_withdrawn")
+        ).all()
+        assert len(events) == 1
+        event = events[0]
+        assert event.actor_user_id == user_id
+        assert event.resource_id == created.json()["id"]
+        assert event.details == {
+            "competition_id": competition_id,
+            "team_id": team_id,
+            "registration_id": created.json()["id"],
+        }
+
+
+def test_denied_withdrawal_does_not_create_withdrawal_audit_event(client, session_factory):
+    token, (competition_id, team_id, _, _) = prepare_registration(client, session_factory)
+    headers = {"Authorization": f"Bearer {token}"}
+    created = client.post(
+        f"/api/v1/competitions/{competition_id}/registrations",
+        json={"team_id": team_id},
+        headers=headers,
+    )
+    assert created.status_code == 201
+    with session_factory() as db:
+        competition = db.get(Competition, competition_id)
+        assert competition is not None
+        competition.status = "active"
+        db.commit()
+
+    denied = client.delete(
+        f"/api/v1/competitions/{competition_id}/registrations/{team_id}",
+        headers=headers,
+    )
+    assert denied.status_code == 409
+
+    with session_factory() as db:
+        from app.models.audit_event import AuditEvent
+
+        events = db.scalars(
+            select(AuditEvent).where(AuditEvent.action == "competition.registration_withdrawn")
+        ).all()
+        assert events == []
