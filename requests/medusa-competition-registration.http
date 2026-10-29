@@ -96,3 +96,8 @@ Authorization: Bearer {{memberLogin.response.body.$.access_token}}
 ### POST {{baseUrl}}/teams/{{teamId}}/join returns 409 for a new member.
 ### DELETE {{baseUrl}}/teams/{{teamId}}/leave returns 409 for an existing non-captain member.
 ### Captain transfer remains allowed; membership changes resume after withdrawal or competition completion/archive.
+
+
+### Scoreboard behavior
+### GET {{baseUrl}}/competitions/{{competitionId}}/scoreboard includes registered teams before they submit any flags.
+### A registered team with no submissions has points=0, solves=0, and last_solved_at=null.
