@@ -187,7 +187,6 @@ def list_my_competition_registrations(
     return [CompetitionRegistrationMineItem(**row._mapping) for row in rows]
 
 
-
 def _csv_safe_cell(value: str) -> str:
     """Prefix spreadsheet formula-leading text so CSV exports remain inert."""
     if value.startswith(("=", "+", "-", "@")):
@@ -227,23 +226,27 @@ def export_competition_registrations(
 
     output = StringIO(newline="")
     writer = csv.writer(output, lineterminator="\r\n")
-    writer.writerow([
-        "registration_id",
-        "competition_id",
-        "team_id",
-        "team_name",
-        "registered_by_user_id",
-        "registered_at",
-    ])
+    writer.writerow(
+        [
+            "registration_id",
+            "competition_id",
+            "team_id",
+            "team_name",
+            "registered_by_user_id",
+            "registered_at",
+        ]
+    )
     for row in rows:
-        writer.writerow([
-            row.id,
-            row.competition_id,
-            row.team_id,
-            _csv_safe_cell(row.team_name),
-            row.registered_by_user_id,
-            row.registered_at.isoformat(),
-        ])
+        writer.writerow(
+            [
+                row.id,
+                row.competition_id,
+                row.team_id,
+                _csv_safe_cell(row.team_name),
+                row.registered_by_user_id,
+                row.registered_at.isoformat(),
+            ]
+        )
 
     return Response(
         content="\ufeff" + output.getvalue(),
