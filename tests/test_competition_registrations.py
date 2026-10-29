@@ -1,3 +1,6 @@
+import csv
+from io import StringIO
+
 from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import func, select
@@ -495,3 +498,111 @@ def test_denied_withdrawal_does_not_create_withdrawal_audit_event(client, sessio
             select(AuditEvent).where(AuditEvent.action == "competition.registration_withdrawn")
         ).all()
         assert events == []
+
+
+def test_registration_csv_export_requires_admin_or_organizer(client, session_factory):
+    _, (competition_id, _, _, _) = prepare_registration(client, session_factory)
+    token = register_and_login(client, "csv-export-participant@example.com")
+
+    response = client.get(
+        f"/api/v1/competitions/{competition_id}/registrations/export",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+
+    assert response.status_code == 403
+
+
+def test_admin_can_export_registration_csv(client, session_factory):
+    _, (competition_id, team_id, _, user_id) = prepare_registration(client, session_factory)
+    with session_factory() as db:
+        user = db.get(User, user_id)
+        assert user is not None
+        user.role = "admin"
+        team = db.get(Team, team_id)
+        assert team is not None
+        team.name = "Export Team"
+        db.commit()
+
+    login = client.post(
+        "/api/v1/auth/token",
+        data={"username": "team-captain@example.com", "password": "a-very-long-test-password"},
+    )
+    assert login.status_code == 200
+    token = login.json()["access_token"]
+    registered = client.post(
+        f"/api/v1/competitions/{competition_id}/registrations",
+        json={"team_id": team_id},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert registered.status_code == 201
+
+    response = client.get(
+        f"/api/v1/competitions/{competition_id}/registrations/export",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/csv")
+    assert response.headers["content-disposition"] == (
+        f'attachment; filename="competition-{competition_id}-registrations.csv"'
+    )
+    rows = list(csv.DictReader(StringIO(response.text.lstrip("\ufeff"))))
+    assert len(rows) == 1
+    assert rows[0]["registration_id"] == str(registered.json()["id"])
+    assert rows[0]["team_name"] == "Export Team"
+    assert rows[0]["registered_by_user_id"] == str(user_id)
+
+
+def test_registration_csv_export_prevents_formula_injection(client, session_factory):
+    _, (competition_id, team_id, _, user_id) = prepare_registration(client, session_factory)
+    with session_factory() as db:
+        user = db.get(User, user_id)
+        assert user is not None
+        user.role = "admin"
+        team = db.get(Team, team_id)
+        assert team is not None
+        team.name = "=1+1"
+        db.commit()
+
+    login = client.post(
+        "/api/v1/auth/token",
+        data={"username": "team-captain@example.com", "password": "a-very-long-test-password"},
+    )
+    assert login.status_code == 200
+    token = login.json()["access_token"]
+    registered = client.post(
+        f"/api/v1/competitions/{competition_id}/registrations",
+        json={"team_id": team_id},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert registered.status_code == 201
+
+    response = client.get(
+        f"/api/v1/competitions/{competition_id}/registrations/export",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    rows = list(csv.DictReader(StringIO(response.text.lstrip("\ufeff"))))
+
+    assert response.status_code == 200
+    assert rows[0]["team_name"] == "'=1+1"
+
+
+def test_registration_csv_export_hides_missing_competition(client, session_factory):
+    _, (_, _, _, user_id) = prepare_registration(client, session_factory)
+    with session_factory() as db:
+        user = db.get(User, user_id)
+        assert user is not None
+        user.role = "admin"
+        db.commit()
+
+    login = client.post(
+        "/api/v1/auth/token",
+        data={"username": "team-captain@example.com", "password": "a-very-long-test-password"},
+    )
+    assert login.status_code == 200
+    response = client.get(
+        "/api/v1/competitions/999999/registrations/export",
+        headers={"Authorization": f"Bearer {login.json()['access_token']}"},
+    )
+
+    assert response.status_code == 404
