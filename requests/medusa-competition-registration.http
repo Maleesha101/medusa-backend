@@ -101,3 +101,12 @@ Authorization: Bearer {{memberLogin.response.body.$.access_token}}
 ### Scoreboard behavior
 ### GET {{baseUrl}}/competitions/{{competitionId}}/scoreboard includes registered teams before they submit any flags.
 ### A registered team with no submissions has points=0, solves=0, and last_solved_at=null.
+
+
+### 8. Check my registration status (expected 200; only teams you currently belong to)
+# @name myRegistrations
+GET {{baseUrl}}/competitions/{{competitionId}}/registrations/mine
+Authorization: Bearer {{memberLogin.response.body.$.access_token}}
+
+### An empty list means none of your current teams are registered.
+### Private, draft, archived, or missing competitions return 404; missing authentication returns 401.

@@ -20,6 +20,7 @@ from app.models.team import Team
 from app.models.user import User
 from app.schemas.competition_registrations import (
     CompetitionRegistrationCreate,
+    CompetitionRegistrationMineItem,
     CompetitionRegistrationPublic,
     CompetitionRegistrationRosterItem,
 )
@@ -130,6 +131,43 @@ def register_team_for_competition(
         ) from None
     db.refresh(registration)
     return registration
+
+
+@router.get(
+    "/{competition_id}/registrations/mine",
+    response_model=list[CompetitionRegistrationMineItem],
+)
+def list_my_competition_registrations(
+    competition_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> list[CompetitionRegistrationMineItem]:
+    """List registrations only for teams the authenticated user currently belongs to."""
+    competition = db.get(Competition, competition_id)
+    if (
+        competition is None
+        or not competition.is_public
+        or competition.status not in {"published", "active", "completed"}
+    ):
+        raise HTTPException(status_code=404, detail="Competition not found")
+
+    rows = db.execute(
+        select(
+            CompetitionRegistration.id,
+            CompetitionRegistration.competition_id,
+            CompetitionRegistration.team_id,
+            Team.name.label("team_name"),
+            CompetitionRegistration.registered_at,
+        )
+        .join(Team, Team.id == CompetitionRegistration.team_id)
+        .join(Membership, Membership.team_id == Team.id)
+        .where(
+            CompetitionRegistration.competition_id == competition_id,
+            Membership.user_id == user.id,
+        )
+        .order_by(CompetitionRegistration.registered_at, CompetitionRegistration.id)
+    ).all()
+    return [CompetitionRegistrationMineItem(**row._mapping) for row in rows]
 
 
 @router.get(
