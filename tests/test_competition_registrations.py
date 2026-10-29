@@ -324,3 +324,65 @@ def test_registration_accepts_team_within_size_bounds(client, session_factory):
     )
 
     assert response.status_code == 201
+
+
+def test_member_can_view_only_their_registered_teams(client, session_factory):
+    token, (competition_id, team_id, _, _) = prepare_registration(client, session_factory)
+    headers = {"Authorization": f"Bearer {token}"}
+    register = client.post(
+        f"/api/v1/competitions/{competition_id}/registrations",
+        json={"team_id": team_id},
+        headers=headers,
+    )
+    assert register.status_code == 201
+
+    response = client.get(
+        f"/api/v1/competitions/{competition_id}/registrations/mine",
+        headers=headers,
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert len(body) == 1
+    assert body[0]["team_id"] == team_id
+    assert body[0]["team_name"] == "Registration Team"
+    assert "registered_by_user_id" not in body[0]
+    assert "email" not in body[0]
+
+
+def test_member_without_registration_gets_empty_list(client, session_factory):
+    _, (competition_id, _, _, _) = prepare_registration(client, session_factory)
+    outsider_token = register_and_login(client, "registration-status-outsider@example.com")
+    headers = {"Authorization": f"Bearer {outsider_token}"}
+
+    response = client.get(
+        f"/api/v1/competitions/{competition_id}/registrations/mine",
+        headers=headers,
+    )
+
+    assert response.status_code == 200
+    assert response.json() == []
+
+
+def test_my_registrations_requires_authentication(client, session_factory):
+    _, (competition_id, _, _, _) = prepare_registration(client, session_factory)
+
+    response = client.get(f"/api/v1/competitions/{competition_id}/registrations/mine")
+
+    assert response.status_code == 401
+
+
+def test_my_registrations_hides_private_competition(client, session_factory):
+    token, (competition_id, _, _, _) = prepare_registration(client, session_factory)
+    with session_factory() as db:
+        competition = db.get(Competition, competition_id)
+        assert competition is not None
+        competition.is_public = False
+        db.commit()
+
+    response = client.get(
+        f"/api/v1/competitions/{competition_id}/registrations/mine",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+
+    assert response.status_code == 404
