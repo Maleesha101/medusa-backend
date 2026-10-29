@@ -1,8 +1,11 @@
 """Competition team registration endpoints."""
 
+import csv
 from datetime import UTC, datetime
+from io import StringIO
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi.responses import Response
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -182,6 +185,75 @@ def list_my_competition_registrations(
         .order_by(CompetitionRegistration.registered_at, CompetitionRegistration.id)
     ).all()
     return [CompetitionRegistrationMineItem(**row._mapping) for row in rows]
+
+
+
+def _csv_safe_cell(value: str) -> str:
+    """Prefix spreadsheet formula-leading text so CSV exports remain inert."""
+    if value.startswith(("=", "+", "-", "@")):
+        return f"'{value}"
+    return value
+
+
+@router.get(
+    "/{competition_id}/registrations/export",
+    response_class=Response,
+    responses={200: {"content": {"text/csv": {}}}},
+)
+def export_competition_registrations(
+    competition_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_roles("organizer", "admin")),
+) -> Response:
+    """Download a CSV roster for an organization the caller is authorized to manage."""
+    competition = db.get(Competition, competition_id)
+    if competition is None:
+        raise HTTPException(status_code=404, detail="Competition not found")
+    require_organization_access(db, user, competition.organization_id)
+
+    rows = db.execute(
+        select(
+            CompetitionRegistration.id,
+            CompetitionRegistration.competition_id,
+            CompetitionRegistration.team_id,
+            Team.name.label("team_name"),
+            CompetitionRegistration.registered_by_user_id,
+            CompetitionRegistration.registered_at,
+        )
+        .join(Team, Team.id == CompetitionRegistration.team_id)
+        .where(CompetitionRegistration.competition_id == competition_id)
+        .order_by(CompetitionRegistration.registered_at, CompetitionRegistration.id)
+    ).all()
+
+    output = StringIO(newline="")
+    writer = csv.writer(output, lineterminator="\r\n")
+    writer.writerow([
+        "registration_id",
+        "competition_id",
+        "team_id",
+        "team_name",
+        "registered_by_user_id",
+        "registered_at",
+    ])
+    for row in rows:
+        writer.writerow([
+            row.id,
+            row.competition_id,
+            row.team_id,
+            _csv_safe_cell(row.team_name),
+            row.registered_by_user_id,
+            row.registered_at.isoformat(),
+        ])
+
+    return Response(
+        content="\ufeff" + output.getvalue(),
+        media_type="text/csv",
+        headers={
+            "Content-Disposition": (
+                f'attachment; filename="competition-{competition_id}-registrations.csv"'
+            )
+        },
+    )
 
 
 @router.get(
