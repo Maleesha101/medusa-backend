@@ -131,6 +131,7 @@ The request body contains `team_id`. Registration is available only for public c
 | Method | Path | Purpose | Access |
 | --- | --- | --- | --- |
 | GET | /api/v1/competitions/{competition_id}/registrations?limit=50&offset=0 | List a competition's registrations in stable pages | Organizer/admin with access to the competition's organization |
+| GET | /api/v1/competitions/{competition_id}/registrations/mine | List registrations for teams the current user belongs to | Authenticated; public competition only |
 | DELETE | /api/v1/competitions/{competition_id}/registrations/{team_id} | Withdraw a team's registration | Current team captain |
 
 The roster is private and includes registration ID, competition ID, team ID/name, registering user ID, and timestamp; it does not include email addresses. The page size defaults to 50 and is limited to 100. Organizers are restricted to organizations they created; admins can manage registrations across organizations. Only the current captain can withdraw their team's registration, while the competition remains in `published` status and the registration close time has not passed. Withdrawal is rejected with HTTP 409 after the competition activates or the window closes, and with HTTP 403 for a non-captain. A withdrawn team loses its registration and therefore cannot submit challenge flags for that competition unless it registers again while registration remains open.
@@ -149,3 +150,6 @@ Competition creation may specify `min_team_size` and/or `max_team_size`, both po
 ### Registered team roster locking
 
 A team cannot add or remove members while it has a registration for a competition in `published` or `active` status. Join and leave requests return HTTP 409 and do not change membership. Captaincy transfer remains available because it does not change roster size. Membership changes become available again after the team withdraws its registration or the associated competition is completed or archived.
+
+
+Participants can use `GET /api/v1/competitions/{competition_id}/registrations/mine` to check their own team's registration status. The response includes only registrations for teams where the caller currently has membership, and contains no email addresses or registering-user identifiers. It returns an empty list when no matching registrations exist and HTTP 404 for missing, private, draft, or archived competitions.
