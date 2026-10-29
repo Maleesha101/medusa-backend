@@ -28,3 +28,13 @@ class CompetitionRegistrationRosterItem(BaseModel):
     team_name: str
     registered_by_user_id: int
     registered_at: datetime
+
+
+class CompetitionRegistrationMineItem(BaseModel):
+    """Registration details visible to a current member of the registered team."""
+
+    id: int
+    competition_id: int
+    team_id: int
+    team_name: str
+    registered_at: datetime
