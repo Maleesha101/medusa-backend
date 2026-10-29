@@ -131,6 +131,7 @@ The request body contains `team_id`. Registration is available only for public c
 | Method | Path | Purpose | Access |
 | --- | --- | --- | --- |
 | GET | /api/v1/competitions/{competition_id}/registrations?limit=50&offset=0 | List a competition's registrations in stable pages | Organizer/admin with access to the competition's organization |
+| GET | /api/v1/competitions/{competition_id}/registrations/export | Download registration roster as CSV | Organizer/admin with access to the competition's organization |
 | GET | /api/v1/competitions/{competition_id}/registrations/mine | List registrations for teams the current user belongs to | Authenticated; public competition only |
 | DELETE | /api/v1/competitions/{competition_id}/registrations/{team_id} | Withdraw a team's registration | Current team captain |
 
@@ -158,3 +159,8 @@ Participants can use `GET /api/v1/competitions/{competition_id}/registrations/mi
 ### Registration lifecycle audit events
 
 Successful team registration writes `competition.registration_created`; successful captain withdrawal writes `competition.registration_withdrawn`. Each event is committed in the same database transaction as its registration change and records only the competition ID, team ID, and registration ID as details, alongside the actor metadata maintained by the audit helper. Failed or denied operations do not produce success events. No emails, credentials, tokens, flags, or request bodies are included.
+
+
+### Registration CSV export
+
+The CSV export uses the same organization-access check as the private JSON roster and contains registration ID, competition ID, team ID/name, registering user ID, and registration timestamp. It is UTF-8 with a byte-order mark, ordered by registration timestamp and ID, and returned as an attachment. Team names beginning with spreadsheet formula characters are prefixed with an apostrophe to reduce formula-injection risk.
