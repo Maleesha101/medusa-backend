@@ -164,3 +164,16 @@ Successful team registration writes `competition.registration_created`; successf
 ### Registration CSV export
 
 The CSV export uses the same organization-access check as the private JSON roster and contains registration ID, competition ID, team ID/name, registering user ID, and registration timestamp. It is UTF-8 with a byte-order mark, ordered by registration timestamp and ID, and returned as an attachment. Team names beginning with spreadsheet formula characters are prefixed with an apostrophe to reduce formula-injection risk.
+
+
+## Administrator operations metrics
+
+| Method | Path | Purpose | Access |
+| --- | --- | --- | --- |
+| GET | /api/v1/admin/operations/metrics | Read API host/process metrics, persisted sandbox lifecycle counts, cleanup counters, and threshold alerts | Admin only |
+
+The endpoint reports CPU, memory, disk, and process uptime where the host/container exposes the required operating-system metrics. Values include units, observation timestamps, and availability. Memory prefers cgroup v2 usage/limit and falls back to host memory when cgroup values are unavailable; disk usage is for the API container's root filesystem. CPU is a procfs snapshot. Sandbox state and cleanup status counts are database-backed. Cleanup worker counters are local to the API process, reset on restart, and are not a distributed/durable worker total.
+
+Thresholds are configurable with `OPS_CPU_WARNING_PERCENT`, `OPS_CPU_CRITICAL_PERCENT`, `OPS_MEMORY_WARNING_PERCENT`, `OPS_MEMORY_CRITICAL_PERCENT`, `OPS_DISK_WARNING_PERCENT`, `OPS_DISK_CRITICAL_PERCENT`, `OPS_CLEANUP_WARNING_COUNT`, and `OPS_CLEANUP_CRITICAL_COUNT`. Defaults are 80/95 percent for CPU, memory, and disk, and 5/20 failed cleanup records. Warning and critical values must be ordered. The response emits stable alert IDs and current threshold crossings; consumers should deduplicate by alert ID and manage notification cooldowns. This endpoint does not persist alert history or send notifications.
+
+The current sandbox controller is unavailable and fails closed. Per-challenge/provider CPU and memory are therefore explicitly unavailable; the API does not inspect the Docker socket or expose provider IDs.
