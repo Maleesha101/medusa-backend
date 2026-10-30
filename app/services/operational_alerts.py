@@ -2,7 +2,7 @@
 
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -34,6 +34,8 @@ def _queue_notifications(
 
 def synchronize_operational_alerts(db: Session, settings) -> dict[str, int]:
     """Persist current alert conditions and enqueue only new/escalated/resolved transitions."""
+    if db.bind is not None and db.bind.dialect.name == "postgresql":
+        db.execute(text("SELECT pg_advisory_xact_lock(73194261)"))
     payload = collect_operational_metrics(db, settings)
     observed_at = datetime.fromisoformat(payload["observed_at"])
     active = {item["id"]: item for item in payload["alerts"]}
@@ -59,7 +61,7 @@ def synchronize_operational_alerts(db: Session, settings) -> dict[str, int]:
             )
             db.add(alert)
             db.flush()
-            _queue_notifications(db, alert, "triggered", f"triggered:{observed_at.isoformat()}")
+            _queue_notifications(db, alert, "triggered", f"triggered:{observed_at.replace(microsecond=0).isoformat()}")
             created += 1
             continue
 
@@ -80,7 +82,7 @@ def synchronize_operational_alerts(db: Session, settings) -> dict[str, int]:
         elif item["severity"] == "critical" and previous_severity != "critical":
             alert.severity = item["severity"]
             db.flush()
-            _queue_notifications(db, alert, "escalated", f"escalated:{observed_at.isoformat()}")
+            _queue_notifications(db, alert, "escalated", f"escalated:{observed_at.replace(microsecond=0).isoformat()}")
             escalated += 1
         else:
             alert.severity = item["severity"]
@@ -91,7 +93,7 @@ def synchronize_operational_alerts(db: Session, settings) -> dict[str, int]:
             alert.resolved_at = observed_at
             alert.last_observed_at = observed_at
             db.flush()
-            _queue_notifications(db, alert, "resolved", f"resolved:{observed_at.isoformat()}")
+            _queue_notifications(db, alert, "resolved", f"resolved:{observed_at.replace(microsecond=0).isoformat()}")
             resolved += 1
 
     db.commit()
