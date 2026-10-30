@@ -117,15 +117,17 @@ def _alerts(metrics: dict, settings) -> list[dict]:
             continue
         severity = "critical" if value >= critical else "warning" if value >= warning else None
         if severity:
-            alerts.append({
-                "id": f"medusa.{alert_name}",
-                "severity": severity,
-                "metric": metric_name,
-                "value": value,
-                "threshold": critical if severity == "critical" else warning,
-                "unit": metric["unit"],
-                "observed_at": metric["observed_at"],
-            })
+            alerts.append(
+                {
+                    "id": f"medusa.{alert_name}",
+                    "severity": severity,
+                    "metric": metric_name,
+                    "value": value,
+                    "threshold": critical if severity == "critical" else warning,
+                    "unit": metric["unit"],
+                    "observed_at": metric["observed_at"],
+                }
+            )
     return alerts
 
 
@@ -142,17 +144,21 @@ def collect_operational_metrics(db: Session, settings) -> dict:
         )
     ).all()
     cleanup_rows = db.execute(
-        select(SandboxInstance.cleanup_status, func.count(SandboxInstance.id))
-        .group_by(SandboxInstance.cleanup_status)
+        select(SandboxInstance.cleanup_status, func.count(SandboxInstance.id)).group_by(
+            SandboxInstance.cleanup_status
+        )
     ).all()
     now = datetime.now(UTC)
-    due_retry_count = db.scalar(
-        select(func.count(SandboxInstance.id)).where(
-            SandboxInstance.cleanup_status.in_(("pending", "failed")),
-            SandboxInstance.cleanup_next_attempt_at.is_not(None),
-            SandboxInstance.cleanup_next_attempt_at <= now,
+    due_retry_count = (
+        db.scalar(
+            select(func.count(SandboxInstance.id)).where(
+                SandboxInstance.cleanup_status.in_(("pending", "failed")),
+                SandboxInstance.cleanup_next_attempt_at.is_not(None),
+                SandboxInstance.cleanup_next_attempt_at <= now,
+            )
         )
-    ) or 0
+        or 0
+    )
     oldest_retry = db.scalar(
         select(func.min(SandboxInstance.cleanup_next_attempt_at)).where(
             SandboxInstance.cleanup_status.in_(("pending", "failed")),
@@ -199,8 +205,7 @@ def collect_operational_metrics(db: Session, settings) -> dict:
         "provider_instance_resource_metrics": {
             "available": False,
             "reason": (
-                "No concrete sandbox provider is configured; "
-                "per-instance CPU/RAM is not measured."
+                "No concrete sandbox provider is configured; per-instance CPU/RAM is not measured."
             ),
         },
         "alerts": _alerts(metrics, settings),
