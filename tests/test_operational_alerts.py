@@ -1,4 +1,5 @@
 from datetime import UTC, datetime
+
 from sqlalchemy import select
 
 from app.models.operational_alert import OperationalAlert, OperationalAlertNotification
@@ -106,6 +107,11 @@ def test_notification_delivery_retries_without_exposing_smtp_error(
             alert_id=alert.id,
             event_key="triggered:1",
             event_type="triggered",
+            metric="host_cpu_percent",
+            severity="warning",
+            value=82,
+            threshold=80,
+            unit="percent",
             recipient_email="ops-admin@example.com",
         )
         db.add(notification)
@@ -142,6 +148,11 @@ def test_notification_smtp_failure_is_retried(session_factory, monkeypatch):
             alert_id=alert.id,
             event_key="triggered:2",
             event_type="triggered",
+            metric="host_cpu_percent",
+            severity="warning",
+            value=82,
+            threshold=80,
+            unit="percent",
             recipient_email="ops-admin@example.com",
         )
         db.add(notification)
