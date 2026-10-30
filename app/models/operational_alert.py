@@ -57,7 +57,7 @@ class OperationalAlertNotification(Base):
     alert_id: Mapped[int] = mapped_column(
         ForeignKey("operational_alerts.id", ondelete="CASCADE"), nullable=False
     )
-    event_key: Mapped[str] = mapped_column(String(40), nullable=False)
+    event_key: Mapped[str] = mapped_column(String(100), nullable=False)
     event_type: Mapped[str] = mapped_column(String(16), nullable=False)
     recipient_email: Mapped[str] = mapped_column(String(320), nullable=False)
     status: Mapped[str] = mapped_column(String(16), nullable=False, default="pending")
