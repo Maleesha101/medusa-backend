@@ -1,6 +1,5 @@
 """Safe operational metrics for the API process and persisted sandbox lifecycle."""
 
-import os
 import shutil
 import time
 from datetime import UTC, datetime
@@ -137,6 +136,8 @@ def collect_operational_metrics(db: Session, settings) -> dict:
             SandboxInstance.cleanup_next_attempt_at.is_not(None),
         )
     )
+    if oldest_retry is not None and oldest_retry.tzinfo is None:
+        oldest_retry = oldest_retry.replace(tzinfo=UTC)
     disk_percent = round(disk.used / disk.total * 100, 2) if disk.total else None
     metrics = {
         "host_cpu_percent": _metric(cpu, "percent", observed_at),
