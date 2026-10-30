@@ -50,6 +50,7 @@ def test_operational_metrics_require_authentication(client):
     response = client.get("/api/v1/admin/operations/metrics")
     assert response.status_code == 401
 
+
 def test_operational_alert_thresholds_are_deterministic():
     from types import SimpleNamespace
 
