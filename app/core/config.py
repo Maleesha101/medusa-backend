@@ -42,6 +42,14 @@ class Settings(BaseSettings):
     sandbox_max_active_per_owner: int = Field(default=2, ge=1, le=100)
     sandbox_max_active_per_competition: int = Field(default=20, ge=1, le=10000)
     sandbox_max_lifetime_minutes: int = Field(default=120, ge=5, le=720)
+    ops_cpu_warning_percent: float = Field(default=80, ge=0, le=100)
+    ops_cpu_critical_percent: float = Field(default=95, ge=0, le=100)
+    ops_memory_warning_percent: float = Field(default=80, ge=0, le=100)
+    ops_memory_critical_percent: float = Field(default=95, ge=0, le=100)
+    ops_disk_warning_percent: float = Field(default=80, ge=0, le=100)
+    ops_disk_critical_percent: float = Field(default=95, ge=0, le=100)
+    ops_cleanup_warning_count: int = Field(default=5, ge=0, le=100000)
+    ops_cleanup_critical_count: int = Field(default=20, ge=0, le=100000)
 
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -76,6 +84,14 @@ class Settings(BaseSettings):
             raise ValueError("Set a unique AUTH_SECRET_KEY before running in production")
         if is_production and (not self.smtp_host or not self.smtp_from_email):
             raise ValueError("Configure SMTP_HOST and SMTP_FROM_EMAIL before running in production")
+        for warning, critical, name in (
+            (self.ops_cpu_warning_percent, self.ops_cpu_critical_percent, "CPU"),
+            (self.ops_memory_warning_percent, self.ops_memory_critical_percent, "memory"),
+            (self.ops_disk_warning_percent, self.ops_disk_critical_percent, "disk"),
+            (self.ops_cleanup_warning_count, self.ops_cleanup_critical_count, "cleanup"),
+        ):
+            if warning > critical:
+                raise ValueError(f"OPS_{name.upper()}_WARNING must not exceed critical threshold")
         return self
 
 
