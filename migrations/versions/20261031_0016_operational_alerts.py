@@ -41,7 +41,7 @@ def upgrade() -> None:
         "operational_alert_notifications",
         sa.Column("id", sa.Integer(), primary_key=True),
         sa.Column("alert_id", sa.Integer(), nullable=False),
-        sa.Column("event_key", sa.String(length=40), nullable=False),
+        sa.Column("event_key", sa.String(length=100), nullable=False),
         sa.Column("event_type", sa.String(length=16), nullable=False),
         sa.Column("recipient_email", sa.String(length=320), nullable=False),
         sa.Column("status", sa.String(length=16), nullable=False, server_default="pending"),
