@@ -1,6 +1,4 @@
 from datetime import UTC, datetime
-from types import SimpleNamespace
-
 from sqlalchemy import select
 
 from app.models.operational_alert import OperationalAlert, OperationalAlertNotification
