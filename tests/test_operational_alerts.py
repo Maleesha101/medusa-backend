@@ -81,9 +81,7 @@ def test_alert_transitions_are_persisted_and_deduplicated(session_factory, monke
         assert len(db.scalars(select(OperationalAlertNotification)).all()) == 3
 
 
-def test_notification_delivery_retries_without_exposing_smtp_error(
-    session_factory, monkeypatch
-):
+def test_notification_delivery_retries_without_exposing_smtp_error(session_factory, monkeypatch):
     monkeypatch.setattr(
         operational_alerts,
         "send_operational_alert_email",
