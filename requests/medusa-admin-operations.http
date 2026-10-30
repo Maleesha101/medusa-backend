@@ -24,3 +24,16 @@ Authorization: Bearer {{adminLogin.response.body.access_token}}
 ### Replace token with a participant access token.
 GET {{baseUrl}}/admin/operations/metrics
 Authorization: Bearer {{participantToken}}
+
+
+### 4. List persisted operational alert state (admin only)
+GET {{baseUrl}}/admin/operations/alerts?active_only=false&limit=50&offset=0
+Authorization: Bearer {{adminLogin.response.body.access_token}}
+
+### 5. List only currently active alerts
+GET {{baseUrl}}/admin/operations/alerts?active_only=true
+Authorization: Bearer {{adminLogin.response.body.access_token}}
+
+### 6. Run the scheduled alert evaluator and notification worker manually
+### Run from the API project environment / container:
+### python -m app.services.operational_alert_worker --batch-size 100
