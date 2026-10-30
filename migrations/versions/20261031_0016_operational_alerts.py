@@ -59,9 +59,7 @@ def upgrade() -> None:
         ),
         sa.Column("sent_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("last_error_code", sa.String(length=64), nullable=True),
-        sa.ForeignKeyConstraint(
-            ["alert_id"], ["operational_alerts.id"], ondelete="CASCADE"
-        ),
+        sa.ForeignKeyConstraint(["alert_id"], ["operational_alerts.id"], ondelete="CASCADE"),
         sa.UniqueConstraint(
             "alert_id",
             "event_key",
