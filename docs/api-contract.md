@@ -177,3 +177,15 @@ The endpoint reports CPU, memory, disk, and process uptime where the host/contai
 Thresholds are configurable with `OPS_CPU_WARNING_PERCENT`, `OPS_CPU_CRITICAL_PERCENT`, `OPS_MEMORY_WARNING_PERCENT`, `OPS_MEMORY_CRITICAL_PERCENT`, `OPS_DISK_WARNING_PERCENT`, `OPS_DISK_CRITICAL_PERCENT`, `OPS_CLEANUP_WARNING_COUNT`, and `OPS_CLEANUP_CRITICAL_COUNT`. Defaults are 80/95 percent for CPU, memory, and disk, and 5/20 failed cleanup records. Warning and critical values must be ordered. The response emits stable alert IDs and current threshold crossings; consumers should deduplicate by alert ID and manage notification cooldowns. This endpoint does not persist alert history or send notifications.
 
 The current sandbox controller is unavailable and fails closed. Per-challenge/provider CPU and memory are therefore explicitly unavailable; the API does not inspect the Docker socket or expose provider IDs.
+
+### Persisted operational alerts
+
+| Method | Path | Purpose | Access |
+| --- | --- | --- | --- |
+| GET | /api/v1/admin/operations/alerts?active_only=false&limit=50&offset=0 | List the latest persisted alert state | Admin only |
+
+The alert worker persists one current lifecycle row per stable alert key. It creates a notification intent for each active administrator on a new alert, a transition to critical severity, or resolution. Repeated observations at an unchanged severity do not enqueue another email. The endpoint returns alert state and timestamps only; it never returns recipient addresses or delivery internals.
+
+Run `python -m app.services.operational_alert_worker --batch-size 100` periodically from the deployment scheduler. Each invocation evaluates metrics, persists transitions, and dispatches at most the requested number of due email intents. Schedule it independently of the API process; no scheduler is installed automatically. Configure the existing SMTP settings (`SMTP_HOST`, `SMTP_PORT`, `SMTP_FROM_EMAIL`, `SMTP_USERNAME`, `SMTP_PASSWORD`, and `SMTP_USE_TLS`) to deliver mail. When SMTP is not configured, notification intents are marked failed with a safe error code; after transient delivery failures, the worker retries with exponential backoff capped at one hour and stops after eight attempts. Repeated scheduler runs do not resend sent notification intents.
+
+On PostgreSQL, alert synchronization uses a transaction-scoped advisory lock and notification dispatch uses row-level `SKIP LOCKED` selection to coordinate overlapping workers. SQLite does not provide equivalent cross-process locking guarantees and is intended for tests/local development only. Alert rows represent the latest lifecycle state for each stable alert key; notification intents preserve the individual triggered/escalated/resolved delivery events.
