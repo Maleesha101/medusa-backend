@@ -4,7 +4,6 @@ from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 from sqlalchemy import select, text
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.email import send_operational_alert_email
@@ -28,11 +27,11 @@ def _queue_notifications(
                 alert_id=alert.id,
                 event_key=event_key,
                 event_type=event_type,
-                metric=notification.metric,
-                severity=notification.severity,
-                value=notification.value,
-                threshold=notification.threshold,
-                unit=notification.unit,
+                metric=alert.metric,
+                severity=alert.severity,
+                value=alert.value,
+                threshold=alert.threshold,
+                unit=alert.unit,
                 recipient_email=email,
             )
         )
@@ -138,11 +137,11 @@ def dispatch_operational_alert_notifications(
             delivered = send_operational_alert_email(
                 notification.recipient_email,
                 event_type=notification.event_type,
-                metric=alert.metric,
-                severity=alert.severity,
-                value=alert.value,
-                threshold=alert.threshold,
-                unit=alert.unit,
+                metric=notification.metric,
+                severity=notification.severity,
+                value=notification.value,
+                threshold=notification.threshold,
+                unit=notification.unit,
                 alert_key=alert.alert_key,
             )
             if not delivered:
