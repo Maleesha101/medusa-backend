@@ -29,7 +29,8 @@ def _memory_metrics() -> dict[str, int | None]:
         try:
             used = int(current.strip())
             limit = int(maximum.strip())
-            return {"used_bytes": used, "limit_bytes": limit, "percent": round(used / limit * 100, 2) if limit else None}
+            percent = round(used / limit * 100, 2) if limit else None
+            return {"used_bytes": used, "limit_bytes": limit, "percent": percent}
         except ValueError:
             pass
 
@@ -83,10 +84,30 @@ def _metric(value: int | float | None, unit: str, observed_at: str) -> dict:
 
 def _alerts(metrics: dict, settings) -> list[dict]:
     definitions = (
-        ("host_cpu_percent", "cpu", settings.ops_cpu_warning_percent, settings.ops_cpu_critical_percent),
-        ("memory_percent", "memory", settings.ops_memory_warning_percent, settings.ops_memory_critical_percent),
-        ("disk_percent", "disk", settings.ops_disk_warning_percent, settings.ops_disk_critical_percent),
-        ("sandbox_cleanup_failed", "cleanup_failures", settings.ops_cleanup_warning_count, settings.ops_cleanup_critical_count),
+        (
+            "host_cpu_percent",
+            "cpu",
+            settings.ops_cpu_warning_percent,
+            settings.ops_cpu_critical_percent,
+        ),
+        (
+            "memory_percent",
+            "memory",
+            settings.ops_memory_warning_percent,
+            settings.ops_memory_critical_percent,
+        ),
+        (
+            "disk_percent",
+            "disk",
+            settings.ops_disk_warning_percent,
+            settings.ops_disk_critical_percent,
+        ),
+        (
+            "sandbox_cleanup_failed",
+            "cleanup_failures",
+            settings.ops_cleanup_warning_count,
+            settings.ops_cleanup_critical_count,
+        ),
     )
     alerts = []
     for metric_name, alert_name, warning, critical in definitions:
@@ -116,7 +137,9 @@ def collect_operational_metrics(db: Session, settings) -> dict:
     cpu = _cpu_percent()
     cleanup = sandbox_cleanup_metrics.snapshot()
     state_rows = db.execute(
-        select(SandboxInstance.state, func.count(SandboxInstance.id)).group_by(SandboxInstance.state)
+        select(SandboxInstance.state, func.count(SandboxInstance.id)).group_by(
+            SandboxInstance.state
+        )
     ).all()
     cleanup_rows = db.execute(
         select(SandboxInstance.cleanup_status, func.count(SandboxInstance.id))
@@ -147,8 +170,12 @@ def collect_operational_metrics(db: Session, settings) -> dict:
         "disk_percent": _metric(disk_percent, "percent", observed_at),
         "disk_used_bytes": _metric(disk.used, "bytes", observed_at),
         "disk_total_bytes": _metric(disk.total, "bytes", observed_at),
-        "process_uptime_seconds": _metric(round(time.monotonic() - _PROCESS_STARTED, 2), "seconds", observed_at),
-        "sandbox_cleanup_failed": _metric(dict(cleanup_rows).get("failed", 0), "instances", observed_at),
+        "process_uptime_seconds": _metric(
+            round(time.monotonic() - _PROCESS_STARTED, 2), "seconds", observed_at
+        ),
+        "sandbox_cleanup_failed": _metric(
+            dict(cleanup_rows).get("failed", 0), "instances", observed_at
+        ),
         "sandbox_cleanup_due_retries": _metric(due_retry_count, "instances", observed_at),
         "sandbox_oldest_retry_age_seconds": _metric(
             max(0, int((now - oldest_retry).total_seconds())) if oldest_retry else 0,
@@ -171,7 +198,10 @@ def collect_operational_metrics(db: Session, settings) -> dict:
         },
         "provider_instance_resource_metrics": {
             "available": False,
-            "reason": "No concrete sandbox provider is configured; per-instance CPU/RAM is not measured.",
+            "reason": (
+                "No concrete sandbox provider is configured; "
+                "per-instance CPU/RAM is not measured."
+            ),
         },
         "alerts": _alerts(metrics, settings),
     }
