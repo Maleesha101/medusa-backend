@@ -49,3 +49,33 @@ def test_admin_receives_metrics_and_unavailable_provider_notice(client, session_
 def test_operational_metrics_require_authentication(client):
     response = client.get("/api/v1/admin/operations/metrics")
     assert response.status_code == 401
+
+def test_operational_alert_thresholds_are_deterministic():
+    from types import SimpleNamespace
+
+    from app.services.operational_metrics import _alerts
+
+    settings = SimpleNamespace(
+        ops_cpu_warning_percent=80,
+        ops_cpu_critical_percent=95,
+        ops_memory_warning_percent=80,
+        ops_memory_critical_percent=95,
+        ops_disk_warning_percent=80,
+        ops_disk_critical_percent=95,
+        ops_cleanup_warning_count=5,
+        ops_cleanup_critical_count=20,
+    )
+    metrics = {
+        "host_cpu_percent": {"value": 85, "unit": "percent", "observed_at": "now"},
+        "memory_percent": {"value": 96, "unit": "percent", "observed_at": "now"},
+        "disk_percent": {"value": 30, "unit": "percent", "observed_at": "now"},
+        "sandbox_cleanup_failed": {"value": 5, "unit": "instances", "observed_at": "now"},
+    }
+
+    alerts = _alerts(metrics, settings)
+
+    assert [(alert["id"], alert["severity"]) for alert in alerts] == [
+        ("medusa.cpu", "warning"),
+        ("medusa.memory", "critical"),
+        ("medusa.cleanup_failures", "warning"),
+    ]
