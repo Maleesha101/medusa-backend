@@ -7,7 +7,13 @@ from sqlalchemy import engine_from_config, pool
 
 from app.core.config import get_settings
 from app.db.base import Base
-from app.models import AuditEvent, PasswordResetToken, User  # noqa: F401 - registers model metadata
+from app.models import (  # noqa: F401 - registers model metadata
+    AuditEvent,
+    OperationalAlert,
+    OperationalAlertNotification,
+    PasswordResetToken,
+    User,
+)
 
 config = context.config
 if config.config_file_name is not None:
