@@ -1,6 +1,7 @@
 """Durable operational alert transitions and retryable email delivery."""
 
 from datetime import UTC, datetime, timedelta
+from uuid import uuid4
 
 from sqlalchemy import select, text
 from sqlalchemy.exc import IntegrityError
@@ -27,6 +28,11 @@ def _queue_notifications(
                 alert_id=alert.id,
                 event_key=event_key,
                 event_type=event_type,
+                metric=notification.metric,
+                severity=notification.severity,
+                value=notification.value,
+                threshold=notification.threshold,
+                unit=notification.unit,
                 recipient_email=email,
             )
         )
@@ -61,7 +67,7 @@ def synchronize_operational_alerts(db: Session, settings) -> dict[str, int]:
             )
             db.add(alert)
             db.flush()
-            _queue_notifications(db, alert, "triggered", f"triggered:{observed_at.replace(microsecond=0).isoformat()}")
+            _queue_notifications(db, alert, "triggered", f"triggered:{uuid4().hex}")
             created += 1
             continue
 
@@ -76,13 +82,14 @@ def synchronize_operational_alerts(db: Session, settings) -> dict[str, int]:
         alert.resolved_at = None
         if not was_active:
             alert.severity = item["severity"]
+            alert.first_observed_at = observed_at
             db.flush()
-            _queue_notifications(db, alert, "triggered", f"triggered:{observed_at.isoformat()}")
+            _queue_notifications(db, alert, "triggered", f"triggered:{uuid4().hex}")
             created += 1
         elif item["severity"] == "critical" and previous_severity != "critical":
             alert.severity = item["severity"]
             db.flush()
-            _queue_notifications(db, alert, "escalated", f"escalated:{observed_at.replace(microsecond=0).isoformat()}")
+            _queue_notifications(db, alert, "escalated", f"escalated:{uuid4().hex}")
             escalated += 1
         else:
             alert.severity = item["severity"]
@@ -93,7 +100,7 @@ def synchronize_operational_alerts(db: Session, settings) -> dict[str, int]:
             alert.resolved_at = observed_at
             alert.last_observed_at = observed_at
             db.flush()
-            _queue_notifications(db, alert, "resolved", f"resolved:{observed_at.replace(microsecond=0).isoformat()}")
+            _queue_notifications(db, alert, "resolved", f"resolved:{uuid4().hex}")
             resolved += 1
 
     db.commit()
