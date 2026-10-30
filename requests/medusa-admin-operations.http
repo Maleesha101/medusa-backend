@@ -1,0 +1,26 @@
+### MEDUSA API — Administrator Operations & Metrics
+### Start API and apply migrations:
+### docker compose up --build -d
+### docker compose exec api alembic upgrade head
+### Use a local account whose database role is admin.
+### Never put real production credentials in this file.
+
+@baseUrl = http://localhost:8000/api/v1
+@adminEmail = admin@example.com
+@password = Replace-With-A-Long-Local-Test-Password
+
+### 1. Login as administrator
+# @name adminLogin
+POST {{baseUrl}}/auth/token
+Content-Type: application/x-www-form-urlencoded
+
+username={{adminEmail}}&password={{password}}
+
+### 2. Read infrastructure and sandbox operational metrics (admin only)
+GET {{baseUrl}}/admin/operations/metrics
+Authorization: Bearer {{adminLogin.response.body.access_token}}
+
+### 3. Verify participant access is denied (expected 403)
+### Replace token with a participant access token.
+GET {{baseUrl}}/admin/operations/metrics
+Authorization: Bearer {{participantToken}}
