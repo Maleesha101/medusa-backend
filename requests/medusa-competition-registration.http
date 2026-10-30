@@ -110,3 +110,11 @@ Authorization: Bearer {{memberLogin.response.body.$.access_token}}
 
 ### An empty list means none of your current teams are registered.
 ### Private, draft, archived, or missing competitions return 404; missing authentication returns 401.
+
+
+### 9. Export registration roster as CSV (organizer/admin with organization access; expected 200)
+GET {{baseUrl}}/competitions/{{competitionId}}/registrations/export
+Authorization: Bearer {{organizerLogin.response.body.$.access_token}}
+
+### The response is a downloadable CSV attachment. Participant accounts and organizers
+### without access to this competition's organization receive 403; missing competition is 404.
