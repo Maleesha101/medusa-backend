@@ -1,20 +1,24 @@
 # ADR: Sandbox Deployment Target and Isolation Model
 
-- Status: **Proposed — deployment owner decision required**
-- Issue: [#31](https://github.com/Maleesha101/medusa-backend/issues/31)
-- Scope: choose the execution boundary for untrusted CTF challenge workloads before implementing a concrete provider.
+- Status: **Selected target — isolation design and provider approval pending evidence**
+- Decision issue: [#31](https://github.com/Maleesha101/medusa-backend/issues/31)
+- VPS readiness work: [#85](https://github.com/Maleesha101/medusa-backend/issues/85)
 
 ## Context
 
-MEDUSA currently exposes a provider-neutral `SandboxController` protocol and defaults to `UnavailableSandboxController`. The `SANDBOX_PROVIDER` setting accepts only `unavailable`. Challenge code must be treated as hostile: a successful escape could compromise other participants, service credentials, or the control plane.
+MEDUSA exposes a provider-neutral `SandboxController` protocol and defaults to `UnavailableSandboxController`. The `SANDBOX_PROVIDER` setting accepts only `unavailable`. Challenge code must be treated as hostile: a successful escape could compromise other participants, service credentials, or the control plane.
 
-The repository does not establish the production hosting platform, expected concurrency, budget, operational staffing, or required challenge network access. Therefore this ADR compares options but does not pretend a final deployment target has been selected.
+## Decision
 
-## Decision criteria
+The project owner selected a **dedicated Linux VPS** as the intended deployment target for sandbox infrastructure.
+
+This selects the hosting environment, not the isolation mechanism. It does not establish that the VPS provider exposes KVM, that a VM/microVM boundary is available, or that the host/network configuration meets the threat model. The concrete runtime remains unselected and unapproved until host-specific evidence and security review are complete.
+
+## Required controls and evidence
 
 A target must demonstrate, with platform configuration and tests:
 
-- Strong isolation appropriate for hostile code; containers alone are not automatically a sufficient security boundary.
+- Strong isolation appropriate for hostile code. A conventional container alone is not accepted as proof of sufficient isolation. Evaluate hardware virtualization/KVM and a VM or microVM boundary where available; any alternative requires an explicit threat-model review.
 - No privileged runtime socket, host filesystem, application secrets, or cloud credentials inside workloads.
 - Default-deny egress, including host, control-plane, cloud metadata, database, Redis, and cross-tenant destinations.
 - Provider-enforced CPU, memory, process, storage, and wall-clock limits.
@@ -22,31 +26,25 @@ A target must demonstrate, with platform configuration and tests:
 - Least-privilege workload identity, auditable operations, security updates, and incident response.
 - Repeatable integration and hostile-workload tests without production credentials.
 
-## Options
+## VPS readiness work
 
-| Option | Advantages | Risks / costs | Evidence required |
-|---|---|---|---|
-| Managed Kubernetes with dedicated, hardened worker nodes | Mature scheduling, quotas, and operational ecosystem | Cluster misconfiguration can expose the control plane; ordinary pods may not provide enough isolation for hostile workloads; requires specialist operations | Node isolation strategy, runtime class/sandboxing mechanism, admission policy, NetworkPolicy enforcement, metadata protection, quota and deadline tests |
-| Dedicated container hosts with a hardened runtime | Direct control over kernel, runtime, and networking; potentially simpler initial footprint | Host escape has a large blast radius; patching, scheduling, cleanup, and tenant separation become our responsibility | Host hardening, rootless/isolated runtime design, syscall/mandatory-access-control policy, per-workload network namespace, host firewall, automated patching and recovery tests |
-| Hosted isolated-execution provider | May reduce infrastructure operations and provide purpose-built isolation | Vendor lock-in, cost and quota constraints, data handling concerns, dependency on provider semantics and availability | Independent security documentation, isolation guarantees, egress controls, resource enforcement, deletion semantics, regional/data policy, SLA, API idempotency and failure tests |
+Issue #85 adds a read-only, sanitized host-capability probe. Detection of a kernel feature or device is only an observation; it does not prove correct configuration or secure isolation. Network egress policy, metadata blocking, workload resource enforcement, hard deadlines, cleanup, and hostile-workload resistance require separate configuration evidence and tests.
 
-No option is approved solely by this comparison. A managed platform must be evaluated by its actual configuration and isolation guarantees, not its product label.
+The probe must not execute privileged commands, change host configuration, launch workloads, or expose sensitive host details. Unknown or inaccessible observations remain unknown and block readiness where required.
 
-## Required owner input
+## Outstanding deployment facts
 
-Before changing this ADR to Accepted, confirm:
+Before accepting a concrete isolation design, record:
 
-1. Where MEDUSA will be deployed and which infrastructure the team can operate.
+1. VPS provider, plan, virtualization type, kernel/distribution, and whether nested or direct KVM access is available.
 2. Expected concurrent sandboxes and approximate per-sandbox CPU, memory, storage, and runtime.
-3. Whether challenges need outbound network access, and if so, which destinations.
-4. Budget and operational constraints, including who will respond to isolation incidents.
-
-## Provisional direction
-
-Do not implement or enable a concrete provider until the owner confirms the deployment context and the chosen option demonstrates the criteria above. Keep `SANDBOX_PROVIDER=unavailable` and retain the fail-closed controller. The next implementation issue should name the chosen platform and list its tested isolation controls.
+3. Whether challenges need outbound network access, and if so, the explicit allowlist.
+4. Budget, patching/backup arrangements, and the person responsible for security incidents.
 
 ## Consequences
 
-- This ADR does not launch workloads, add runtime dependencies, expose endpoints, or add credentials.
-- The final decision remains open pending deployment-owner input.
-- Provider-specific implementation and hostile-workload integration tests remain follow-up work.
+- Keep `SANDBOX_PROVIDER=unavailable`; no concrete provider is approved.
+- Do not add participant-facing launch endpoints or credentials as part of host preflight.
+- Do not use or mount a Docker/container-runtime socket into challenge workloads.
+- A successful preflight is not security certification or permission to enable execution.
+- Provider implementation follows only after the VPS capabilities, isolation mechanism, network policy, resource enforcement, cleanup, and hostile-workload tests are reviewed.
