@@ -7,6 +7,7 @@ def _facts() -> dict[str, str]:
         "/sys/fs/cgroup/cgroup.controllers": "cpu memory pids\n",
         "/proc/sys/kernel/seccomp/actions_avail": "kill_process trap errno allow",
         "/sys/module/apparmor/parameters/enabled": "Y\n",
+        "/sys/fs/selinux/enforce": "0\n",
     }
 
 
