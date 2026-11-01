@@ -2,7 +2,7 @@
 
 ## Purpose and safety boundary
 
-This preflight is a readiness aid for the selected dedicated Linux VPS target. It does **not** start containers or VMs, execute challenge code, change host configuration, or certify the host as secure. A capability being present does not prove that it is correctly configured or safely enforced.
+This preflight is a readiness aid for the selected DigitalOcean dedicated Linux VPS target. Follow the [DigitalOcean VPS deployment readiness guide](digitalocean-vps-deployment.md) for pre-purchase planning and host hardening. It does **not** start containers or VMs, execute challenge code, change host configuration, or certify the host as secure. A capability being present does not prove that it is correctly configured or safely enforced.
 
 Keep `SANDBOX_PROVIDER=unavailable`. Neither the host probe nor the manifest evaluator enables a provider. Unknown or inaccessible observations must not be interpreted as success.
 
@@ -54,7 +54,7 @@ The CLI prints deterministic JSON with `ready`, `blocked`, `missing`, and `unkno
 
 ## Current status
 
-- Deployment target: dedicated Linux VPS selected.
+- Deployment provider/target: DigitalOcean dedicated Linux VPS selected; no Droplet provisioned yet.
 - Concrete isolation mechanism/provider: pending VPS capability evidence and threat-model review.
 - Host probe: read-only observations only; it does not certify or enable a provider.
 - Provider activation: blocked; `SANDBOX_PROVIDER=unavailable` remains mandatory.
