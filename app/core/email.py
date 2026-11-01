@@ -35,3 +35,48 @@ def send_password_reset_email(email: str, reset_link: str) -> bool:
             client.login(settings.smtp_username, settings.smtp_password or "")
         client.send_message(message)
     return True
+
+
+def send_operational_alert_email(
+    email: str,
+    *,
+    event_type: str,
+    metric: str,
+    severity: str,
+    value: float,
+    threshold: float,
+    unit: str,
+    alert_key: str,
+) -> bool:
+    """Send a concise operational alert without exposing infrastructure internals."""
+    settings = get_settings()
+    if not settings.smtp_host or not settings.smtp_from_email:
+        return False
+
+    labels = {
+        "triggered": "Operational alert triggered",
+        "escalated": "Operational alert escalated",
+        "resolved": "Operational alert resolved",
+    }
+    subject = labels.get(event_type, "MEDUSA operational alert")
+    message = EmailMessage()
+    message["Subject"] = f"MEDUSA: {subject}"
+    message["From"] = settings.smtp_from_email
+    message["To"] = email
+    message.set_content(
+        f"Alert: {alert_key}\n"
+        f"Event: {event_type}\n"
+        f"Metric: {metric}\n"
+        f"Severity: {severity}\n"
+        f"Observed value: {value} {unit}\n"
+        f"Threshold: {threshold} {unit}\n"
+        "Review the administrator operations metrics in MEDUSA.\n"
+    )
+
+    with smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=10) as client:
+        if settings.smtp_use_tls:
+            client.starttls(context=ssl.create_default_context())
+        if settings.smtp_username:
+            client.login(settings.smtp_username, settings.smtp_password or "")
+        client.send_message(message)
+    return True

@@ -9,6 +9,7 @@ from app.models.competition import Competition
 from app.models.competition_registration import CompetitionRegistration
 from app.models.competition_round import CompetitionRound
 from app.models.membership import Membership
+from app.models.operational_alert import OperationalAlert, OperationalAlertNotification
 from app.models.organization import Organization
 from app.models.password_reset_token import PasswordResetToken
 from app.models.sandbox_instance import SandboxInstance
@@ -26,6 +27,8 @@ __all__ = [
     "CompetitionRegistration",
     "Membership",
     "Organization",
+    "OperationalAlert",
+    "OperationalAlertNotification",
     "PasswordResetToken",
     "SandboxInstance",
     "Team",

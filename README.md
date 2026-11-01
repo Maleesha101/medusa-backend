@@ -20,6 +20,7 @@ MEDUSA uses a **modular monolith** initially. Domain boundaries are explicit, bu
 ## Implemented endpoints
 
 - GET /api/v1/live and GET /api/v1/ready — health probes
+- GET /api/v1/admin/operations/metrics and GET /api/v1/admin/operations/alerts — administrator operational metrics and persisted alert state
 - POST /api/v1/auth/register, POST /api/v1/auth/token, GET /api/v1/auth/me, POST /api/v1/auth/logout, POST /api/v1/auth/password-reset/request, POST /api/v1/auth/password-reset/confirm — identity, authentication, logout, and password recovery
 - GET/POST /api/v1/organizations — list and create organizations
 - GET /api/v1/organizations/{organization_id} — get an organization
@@ -85,7 +86,7 @@ ruff format --check .
 4. **Competition/round foundation:** competition metadata, lifecycle transitions, schedules, and ordered rounds.
 5. **CTF engine:** challenge authoring/catalog, flag submission/validation, immutable solve-time point awards, public scoreboards, persistent audit events, and Redis-backed submission rate limits are implemented.
 6. **Infrastructure integration:** in progress. Sandbox lifecycle metadata and a fail-closed controller contract are being introduced before any runtime provider or participant-facing API is enabled.
-7. **Realtime and SOC:** public scoreboard WebSocket notifications are implemented; alerts, broader operational visibility, and integrations remain future work.
+7. **Realtime and SOC:** public scoreboard WebSocket notifications and persisted operational alert notifications are implemented; broader integrations remain future work.
 8. **Hardening and scale:** threat modeling, registration/token rate limits, load testing, observability, backups, and deployment security.
 
 ## Security principles
