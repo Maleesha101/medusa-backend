@@ -1,8 +1,4 @@
-"""Read-only observations of selected Linux sandbox-host capabilities.
-
-This probe reports kernel/host facts only. It cannot certify isolation, network
-policy, resource enforcement, or provider readiness and never changes the host.
-"""
+"""Read-only observations of selected Linux sandbox-host capabilities."""
 
 from collections.abc import Callable
 from pathlib import Path
@@ -13,18 +9,9 @@ PathExists = Callable[[str], bool]
 PathAccessible = Callable[[str], bool]
 
 _NAMESPACE_PATHS = (
-    "/proc/self/ns/cgroup",
-    "/proc/self/ns/ipc",
-    "/proc/self/ns/mnt",
-    "/proc/self/ns/net",
-    "/proc/self/ns/pid",
-    "/proc/self/ns/uts",
+    "/proc/self/ns/cgroup", "/proc/self/ns/ipc", "/proc/self/ns/mnt",
+    "/proc/self/ns/net", "/proc/self/ns/pid", "/proc/self/ns/uts",
 )
-_CGROUP_CONTROLLERS = "/sys/fs/cgroup/cgroup.controllers"
-_SECCOMP_ACTIONS = "/sys/kernel/security/seccomp/actions_avail"
-_APPARMOR_ENABLED = "/sys/module/apparmor/parameters/enabled"
-_SELINUX_ENFORCE = "/sys/fs/selinux/enforce"
-_KVM_DEVICE = "/dev/kvm"
 
 
 def _read_text(path: str) -> str:
@@ -54,56 +41,38 @@ def probe_linux_host_capabilities(
 ) -> dict[str, bool | None]:
     """Return sanitized observations; unavailable evidence is represented by None.
 
-    Injected filesystem functions make the probe testable without root, KVM, or
-    a real Linux host. No subprocesses or privileged operations are used.
+    Injected filesystem functions allow tests without root, KVM, or a real VPS.
+    The probe performs no subprocesses, privileged operations, or host changes.
     """
     os_type = _safe_read(read_text, "/proc/sys/kernel/ostype")
     linux = os_type.strip() == "Linux" if os_type is not None else None
 
-    namespace_results = [exists(path) for path in _NAMESPACE_PATHS]
-    namespaces = (
-        all(namespace_results)
-        if linux is True
-        else None
-    )
-
-    controllers = _safe_read(read_text, _CGROUP_CONTROLLERS)
-    cgroups_v2 = (
-        bool(controllers.strip())
-        if controllers is not None and linux is True
-        else None
-    )
-
-    seccomp_actions = _safe_read(read_text, _SECCOMP_ACTIONS)
-    seccomp = (
-        "allow" in seccomp_actions.split()
-        if seccomp_actions is not None and linux is True
-        else None
-    )
-
-    apparmor = _safe_read(read_text, _APPARMOR_ENABLED)
-    selinux = _safe_read(read_text, _SELINUX_ENFORCE)
-    if linux is not True or (apparmor is None and selinux is None):
-        mandatory_access_control = None
+    if linux is True:
+        namespaces = all(exists(path) for path in _NAMESPACE_PATHS)
+        controllers = _safe_read(read_text, "/sys/fs/cgroup/cgroup.controllers")
+        cgroups_v2 = bool(controllers.strip()) if controllers is not None else None
+        actions = _safe_read(read_text, "/proc/sys/kernel/seccomp/actions_avail")
+        seccomp = "allow" in actions.split() if actions is not None else None
+        apparmor = _safe_read(read_text, "/sys/module/apparmor/parameters/enabled")
+        selinux = _safe_read(read_text, "/sys/fs/selinux/enforce")
+        if apparmor is None and selinux is None:
+            mac_active = None
+        else:
+            apparmor_active = apparmor.strip().lower() == "y" if apparmor is not None else False
+            selinux_active = selinux.strip() == "1" if selinux is not None else False
+            mac_active = apparmor_active or selinux_active
+        kvm_present = exists("/dev/kvm")
+        kvm_accessible = accessible("/dev/kvm") if kvm_present else False
     else:
-        apparmor_active = apparmor.strip().lower() == "y" if apparmor is not None else False
-        selinux_active = selinux.strip() == "1" if selinux is not None else False
-        mandatory_access_control = apparmor_active or selinux_active
-
-    kvm_exists = exists(_KVM_DEVICE) if linux is True else None
-    kvm_accessible = (
-        accessible(_KVM_DEVICE)
-        if kvm_exists is True
-        else False if kvm_exists is False
-        else None
-    )
+        namespaces = cgroups_v2 = seccomp = mac_active = None
+        kvm_present = kvm_accessible = None
 
     return {
         "linux_host": linux,
         "linux_namespaces_present": namespaces,
         "cgroups_v2_present": cgroups_v2,
         "seccomp_kernel_support_observed": seccomp,
-        "apparmor_or_selinux_active": mandatory_access_control,
-        "kvm_device_present": kvm_exists,
+        "apparmor_or_selinux_active": mac_active,
+        "kvm_device_present": kvm_present,
         "kvm_device_accessible_to_probe": kvm_accessible,
     }
