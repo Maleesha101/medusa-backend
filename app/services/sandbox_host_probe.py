@@ -59,14 +59,14 @@ def probe_linux_host_capabilities(
         seccomp = "allow" in actions.split() if actions is not None else None
         apparmor = _safe_read(read_text, "/sys/module/apparmor/parameters/enabled")
         selinux = _safe_read(read_text, "/sys/fs/selinux/enforce")
-        if apparmor is None and selinux is None:
-            mac_active = None
+        apparmor_active = apparmor.strip().lower() == "y" if apparmor is not None else False
+        selinux_active = selinux.strip() == "1" if selinux is not None else False
+        if apparmor_active or selinux_active:
+            mac_active = True
+        elif apparmor is not None and selinux is not None:
+            mac_active = False
         else:
-            apparmor_active = (
-                apparmor.strip().lower() == "y" if apparmor is not None else False
-            )
-            selinux_active = selinux.strip() == "1" if selinux is not None else False
-            mac_active = apparmor_active or selinux_active
+            mac_active = None
         kvm_present = exists("/dev/kvm")
         kvm_accessible = accessible("/dev/kvm") if kvm_present else False
     else:
