@@ -1,16 +1,20 @@
 """Read-only observations of selected Linux sandbox-host capabilities."""
 
+import os
 from collections.abc import Callable
 from pathlib import Path
-import os
 
 ReadText = Callable[[str], str]
 PathExists = Callable[[str], bool]
 PathAccessible = Callable[[str], bool]
 
 _NAMESPACE_PATHS = (
-    "/proc/self/ns/cgroup", "/proc/self/ns/ipc", "/proc/self/ns/mnt",
-    "/proc/self/ns/net", "/proc/self/ns/pid", "/proc/self/ns/uts",
+    "/proc/self/ns/cgroup",
+    "/proc/self/ns/ipc",
+    "/proc/self/ns/mnt",
+    "/proc/self/ns/net",
+    "/proc/self/ns/pid",
+    "/proc/self/ns/uts",
 )
 
 
@@ -58,7 +62,9 @@ def probe_linux_host_capabilities(
         if apparmor is None and selinux is None:
             mac_active = None
         else:
-            apparmor_active = apparmor.strip().lower() == "y" if apparmor is not None else False
+            apparmor_active = (
+                apparmor.strip().lower() == "y" if apparmor is not None else False
+            )
             selinux_active = selinux.strip() == "1" if selinux is not None else False
             mac_active = apparmor_active or selinux_active
         kvm_present = exists("/dev/kvm")
