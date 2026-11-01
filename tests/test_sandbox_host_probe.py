@@ -12,8 +12,13 @@ def _facts() -> dict[str, str]:
 
 def _paths() -> set[str]:
     return {
-        "/proc/self/ns/cgroup", "/proc/self/ns/ipc", "/proc/self/ns/mnt",
-        "/proc/self/ns/net", "/proc/self/ns/pid", "/proc/self/ns/uts", "/dev/kvm",
+        "/proc/self/ns/cgroup",
+        "/proc/self/ns/ipc",
+        "/proc/self/ns/mnt",
+        "/proc/self/ns/net",
+        "/proc/self/ns/pid",
+        "/proc/self/ns/uts",
+        "/dev/kvm",
     }
 
 
