@@ -59,9 +59,7 @@ def probe_linux_host_capabilities(
         seccomp = "allow" in actions.split() if actions is not None else None
         apparmor = _safe_read(read_text, "/sys/module/apparmor/parameters/enabled")
         selinux = _safe_read(read_text, "/sys/fs/selinux/enforce")
-        apparmor_active = (
-            apparmor.strip().lower() == "y" if apparmor is not None else False
-        )
+        apparmor_active = apparmor.strip().lower() == "y" if apparmor is not None else False
         selinux_active = selinux.strip() == "1" if selinux is not None else False
         if apparmor_active or selinux_active:
             mac_active = True
