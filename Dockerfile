@@ -9,8 +9,15 @@ COPY pyproject.toml README.md alembic.ini ./
 COPY app ./app
 COPY migrations ./migrations
 
-RUN pip install --no-cache-dir .
+RUN pip install --no-cache-dir . \
+    && groupadd --system medusa \
+    && useradd --system --gid medusa --home-dir /app --no-create-home medusa
+
+USER medusa:medusa
 
 EXPOSE 8000
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD ["python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/v1/ready', timeout=4)"]
 
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

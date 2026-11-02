@@ -65,6 +65,29 @@ Organization and competition creation and lifecycle changes require an organizer
 
 Password recovery requires SMTP settings (`SMTP_HOST`, `SMTP_FROM_EMAIL`, and related credentials) to deliver reset links. Reset tokens are never returned by the API. The Compose database password and signing key are development-only values. Replace both through deployment secrets before any non-local deployment. Do not commit .env or real credentials.
 
+## Building and checking the API container
+
+Build the runtime image locally:
+
+```bash
+docker build -t medusa-backend:local .
+```
+
+The image runs Uvicorn as the unprivileged `medusa` user and includes a Docker health check against `/api/v1/ready`. The readiness endpoint requires the database to accept a lightweight query, so run the image with a reachable configured database and Redis service.
+
+For a local Compose smoke test:
+
+```bash
+docker compose up --build -d
+docker compose ps
+docker inspect --format='{{json .State.Health}}' medusa-api
+docker compose logs --tail=100 api
+```
+
+The health state becomes healthy only after the API can reach its database. Stop the local stack with `docker compose down`; add `-v` only when intentionally deleting local database data.
+
+GitHub Actions builds the Docker image for pull requests and pushes to main without publishing it or requiring registry credentials. This validates image construction, not a production deployment or sandbox isolation.
+
 ## Running tests
 
 The production Docker image intentionally installs runtime dependencies only. Install the optional development dependencies in a local virtual environment to run pytest and Ruff:
