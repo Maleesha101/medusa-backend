@@ -15,7 +15,7 @@ MEDUSA uses a **modular monolith** initially. Domain boundaries are explicit, bu
 - **Cache and async jobs:** Redis and a worker process
 - **Realtime:** WebSockets for live competition and scoreboard updates
 - **Object storage:** S3-compatible storage for uploaded assets and challenge artifacts
-- **Deployment:** Docker-based local development, with production hardening added in later phases
+- **Deployment:** Docker-based local development; DigitalOcean VPS selected as the planned hosting provider (see [DigitalOcean deployment readiness](docs/digitalocean-vps-deployment.md))
 
 ## Implemented endpoints
 

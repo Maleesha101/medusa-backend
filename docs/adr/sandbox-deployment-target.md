@@ -3,6 +3,8 @@
 - Status: **Selected target — isolation design and provider approval pending evidence**
 - Decision issue: [#31](https://github.com/Maleesha101/medusa-backend/issues/31)
 - VPS readiness work: [#85](https://github.com/Maleesha101/medusa-backend/issues/85)
+- DigitalOcean deployment planning: [#87](https://github.com/Maleesha101/medusa-backend/issues/87)
+- [DigitalOcean VPS deployment readiness guide](../digitalocean-vps-deployment.md)
 
 ## Context
 
@@ -10,7 +12,7 @@ MEDUSA exposes a provider-neutral `SandboxController` protocol and defaults to `
 
 ## Decision
 
-The project owner selected a **dedicated Linux VPS** as the intended deployment target for sandbox infrastructure.
+The project owner selected **DigitalOcean** as the hosting provider and a **dedicated Linux VPS** as the intended deployment target for sandbox infrastructure.
 
 This selects the hosting environment, not the isolation mechanism. It does not establish that the VPS provider exposes KVM, that a VM/microVM boundary is available, or that the host/network configuration meets the threat model. The concrete runtime remains unselected and unapproved until host-specific evidence and security review are complete.
 
@@ -36,10 +38,14 @@ The probe must not execute privileged commands, change host configuration, launc
 
 Before accepting a concrete isolation design, record:
 
-1. VPS provider, plan, virtualization type, kernel/distribution, and whether nested or direct KVM access is available.
+1. DigitalOcean Droplet plan/size, region, virtualization type, kernel/distribution, and whether nested or direct KVM access is available for that exact plan.
 2. Expected concurrent sandboxes and approximate per-sandbox CPU, memory, storage, and runtime.
 3. Whether challenges need outbound network access, and if so, the explicit allowlist.
 4. Budget, patching/backup arrangements, and the person responsible for security incidents.
+
+## Deployment preparation
+
+Issue #87 adds a DigitalOcean-specific pre-purchase and post-provisioning checklist. No Droplet is provisioned by that documentation. Region, Droplet size, KVM/virtualization access, and network enforcement must be verified against the actual selected Droplet; provider selection alone is not evidence that the sandbox threat model can be met.
 
 ## Consequences
 
