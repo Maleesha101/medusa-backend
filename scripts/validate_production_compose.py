@@ -1,7 +1,5 @@
 """Validate the production Compose profile's rendered security-sensitive settings."""
 
-from __future__ import annotations
-
 import json
 import subprocess
 from pathlib import Path
