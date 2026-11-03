@@ -130,9 +130,9 @@ jobs:
           DEPENDENCY_AUDIT_RESULT: ${{ needs.dependency-audit.result }}
           SECRET_SCAN_RESULT: ${{ needs.secret-scan.result }}
         run: |
-          printf 'Bandit SAST: %s\n' "$SAST_RESULT"
-          printf 'Dependency audit: %s\n' "$DEPENDENCY_AUDIT_RESULT"
-          printf 'Gitleaks secret scan: %s\n' "$SECRET_SCAN_RESULT"
+          printf 'Bandit SAST: %s\\n' "$SAST_RESULT"
+          printf 'Dependency audit: %s\\n' "$DEPENDENCY_AUDIT_RESULT"
+          printf 'Gitleaks secret scan: %s\\n' "$SECRET_SCAN_RESULT"
           test "$SAST_RESULT" = "success"
           test "$DEPENDENCY_AUDIT_RESULT" = "success"
           test "$SECRET_SCAN_RESULT" = "success"
@@ -145,6 +145,12 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Validate production Compose security defaults
+        run: python scripts/validate_production_compose.py
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
       - name: Build API image (no push)

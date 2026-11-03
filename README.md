@@ -86,7 +86,24 @@ docker compose logs --tail=100 api
 
 The health state becomes healthy only after the API can reach its database. Stop the local stack with `docker compose down`; add `-v` only when intentionally deleting local database data.
 
-GitHub Actions builds the Docker image for pull requests and pushes to main without publishing it or requiring registry credentials. This validates image construction, not a production deployment or sandbox isolation.
+## Production Compose deployment
+
+The separate `compose.production.yaml` profile keeps PostgreSQL and Redis off published host ports and binds the API to loopback for a separately managed TLS reverse proxy. It requires production secrets and SMTP settings and applies additional hardening to the API container. It does not configure TLS, host firewall rules, backups, or sandbox isolation.
+
+Follow [the production Compose deployment guide](docs/production-compose-deployment.md). Validate the rendered profile before starting it:
+
+```bash
+cp .env.production.example .env.production
+chmod 600 .env.production
+# Edit .env.production with unique production secrets and real SMTP/frontend settings.
+docker compose --env-file .env.production -f compose.production.yaml config --quiet
+python scripts/validate_production_compose.py
+docker compose --env-file .env.production -f compose.production.yaml up --build -d
+```
+
+Never commit `.env.production`. Keep `SANDBOX_PROVIDER=unavailable`; this profile is for the trusted application/control plane only.
+
+GitHub Actions builds the Docker image for pull requests and pushes to main without publishing it or requiring registry credentials. CI also validates the production Compose security-sensitive defaults. This validates configuration and image construction, not a production deployment or sandbox isolation.
 
 ## Running tests
 
