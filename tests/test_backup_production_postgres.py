@@ -96,7 +96,7 @@ def test_failed_dump_or_verification_leaves_no_completed_backup(
 
 def test_retention_removes_only_expired_matching_regular_files(tmp_path: Path) -> None:
     _, backup_dir = private_inputs(tmp_path)
-    now = datetime(2026, 11, 4, tzinfo=timezone.utc)
+    now = datetime(2026, 11, 4, tzinfo=UTC)
     expired = backup_dir / "medusa-postgres-20261001T000000000000Z.dump"
     recent = backup_dir / "medusa-postgres-20261103T000000000000Z.dump"
     unrelated = backup_dir / "customer-export.dump"
