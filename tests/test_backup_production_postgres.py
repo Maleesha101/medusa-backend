@@ -34,9 +34,7 @@ def test_creates_private_verified_backup(tmp_path: Path) -> None:
     env_file, backup_dir = private_inputs(tmp_path)
     observed_at = datetime(2026, 11, 4, 3, 0, tzinfo=UTC)
 
-    result = backup.create_backup(
-        env_file, backup_dir, now=observed_at, runner=fake_runner
-    )
+    result = backup.create_backup(env_file, backup_dir, now=observed_at, runner=fake_runner)
 
     assert result.name == "medusa-postgres-20261104T030000000000Z.dump"
     assert result.read_bytes() == b"custom-format-dump"
