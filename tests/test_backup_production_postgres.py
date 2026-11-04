@@ -2,7 +2,7 @@
 
 import os
 import subprocess
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
@@ -32,7 +32,7 @@ def fake_runner(command: list[str], **kwargs: object) -> subprocess.CompletedPro
 
 def test_creates_private_verified_backup(tmp_path: Path) -> None:
     env_file, backup_dir = private_inputs(tmp_path)
-    observed_at = datetime(2026, 11, 4, 3, 0, tzinfo=timezone.utc)
+    observed_at = datetime(2026, 11, 4, 3, 0, tzinfo=UTC)
 
     result = backup.create_backup(
         env_file, backup_dir, now=observed_at, runner=fake_runner
