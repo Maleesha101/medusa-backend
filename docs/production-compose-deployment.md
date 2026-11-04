@@ -115,6 +115,31 @@ A successful run proves that the archive can be restored and that the core schem
 
 This command is verification-only. It does not read `.env.production`, use production database credentials, mount production volumes, or connect to the production database. Never modify it to target production as a shortcut. Any production restore requires a separately approved recovery plan, a fresh safety backup, a confirmed target, and a deliberate maintenance window; never automatically overwrite production data.
 
+
+### Encrypted off-site backup replication
+
+Local backup retention is not an independent backup. Configure an rclone `crypt` remote that wraps a separately managed remote (for example, an S3-compatible bucket), then copy each completed dump individually:
+
+```bash
+# Install rclone using its official installation instructions.
+# Configure a remote named "medusa-vault" with type "crypt".
+# Its underlying remote should point to a private bucket/prefix.
+# Protect the rclone configuration and encryption recovery material.
+chmod 600 /etc/medusa/rclone.conf
+
+python scripts/replicate_production_postgres_backup.py \
+  /mnt/medusa-backups/medusa-postgres-YYYYMMDDTHHMMSSffffffZ.dump \
+  --config /etc/medusa/rclone.conf \
+  --remote medusa-vault \
+  --remote-dir medusa-postgres-backups
+```
+
+The command accepts only one correctly named MEDUSA dump and requires the selected rclone remote to be configured as type `crypt`. It uses rclone's immutable copy mode and then verifies the remote file by downloading and comparing its contents. It never deletes remote objects or the local source. Schedule it after the local backup command succeeds, and monitor both exit statuses. Use a separate host scheduler/alert for missing or failed off-site copies.
+
+The rclone crypt password and optional salt are required to recover the backup. Store them in an approved secrets manager and maintain a separately protected recovery procedure; losing them makes encrypted backups unrecoverable. Do not commit rclone configuration, cloud credentials, crypt passwords, or salts. Restrict the underlying storage account and bucket permissions, enable provider-side versioning/object lock or equivalent retention controls where appropriate, and test account-level recovery independently. The script does not configure bucket policy, encryption-key escrow, object lock, or retention.
+
+To recover a file for a restore drill, copy the selected object back through the same crypt remote to a private local directory, then pass the downloaded dump to `scripts/verify_production_postgres_restore.py`. Do not restore directly to production.
+
 Do not use `docker compose down -v` as part of backup or restore. It deletes named volume data.
 
 ## Release and rollback
