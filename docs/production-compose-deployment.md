@@ -2,7 +2,7 @@
 
 This profile is for the MEDUSA application/control plane on a dedicated application host. It is separate from the local-development `compose.yaml`; do not replace the local workflow with it.
 
-The profile does not provision a VPS, configure a host firewall or TLS reverse proxy, provide a backup service, or isolate hostile challenge code. Keep `SANDBOX_PROVIDER=unavailable`. The API is bound to host loopback so a separately managed reverse proxy can terminate HTTPS. PostgreSQL and Redis have no published host ports.
+The profile does not provision a VPS, configure a host firewall or TLS reverse proxy, provide off-host backup storage, or isolate hostile challenge code. Keep `SANDBOX_PROVIDER=unavailable`. The API is bound to host loopback so a separately managed reverse proxy can terminate HTTPS. PostgreSQL and Redis have no published host ports.
 
 ## Prerequisites
 
@@ -105,7 +105,8 @@ Monitor the scheduler's exit status and alert on failed or missing daily backups
 Periodically test a backup against a disposable PostgreSQL container. This example does not publish a database port or connect to the production database:
 
 ```bash
-BACKUP_FILE=/mnt/medusa-backups/medusa-postgres-YYYYMMDDTHHMMSSZ.dump
+set -euo pipefail
+BACKUP_FILE=/mnt/medusa-backups/medusa-postgres-YYYYMMDDTHHMMSSffffffZ.dump
 RESTORE_PASSWORD="$(openssl rand -hex 32)"
 docker run -d --rm --name medusa-restore-drill \
   -e POSTGRES_PASSWORD="$RESTORE_PASSWORD" postgres:16-alpine
