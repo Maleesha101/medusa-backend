@@ -111,11 +111,15 @@ RESTORE_PASSWORD="$(openssl rand -hex 32)"
 docker run -d --rm --name medusa-restore-drill \
   -e POSTGRES_PASSWORD="$RESTORE_PASSWORD" postgres:16-alpine
 trap 'docker rm -f medusa-restore-drill >/dev/null 2>&1 || true' EXIT
-until docker exec medusa-restore-drill pg_isready -U postgres; do sleep 2; done
+for attempt in {1..30}; do
+  if docker exec medusa-restore-drill pg_isready -U postgres; then break; fi
+  sleep 2
+done
+docker exec medusa-restore-drill pg_isready -U postgres
 docker exec medusa-restore-drill createdb -U postgres restore_drill
 docker exec -i medusa-restore-drill pg_restore -U postgres -d restore_drill \
   --no-owner --no-privileges < "$BACKUP_FILE"
-docker exec medusa-restore-drill psql -U postgres -d restore_drill -c '\\dt'
+docker exec medusa-restore-drill psql -U postgres -d restore_drill -c '\dt'
 ```
 
 Confirm the expected application tables and perform application-level checks against the disposable database. Remove the disposable container after the drill. Do not point this procedure at the production database. Any production restore requires an approved recovery plan, a fresh safety backup, a confirmed target, and a deliberate maintenance window; never automatically overwrite production data.
