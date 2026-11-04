@@ -56,6 +56,8 @@ def _validate_config(path: Path, remote_name: str) -> Path:
 
 
 def _validate_remote_dir(remote_dir: str) -> str:
+    if remote_dir.startswith("/"):
+        raise ValueError("The remote directory must be a safe relative path.")
     normalized = remote_dir.strip("/")
     if not normalized or any(part in {"", ".", ".."} for part in normalized.split("/")):
         raise ValueError("The remote directory must be a safe relative path.")
