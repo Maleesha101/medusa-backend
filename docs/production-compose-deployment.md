@@ -90,7 +90,7 @@ python scripts/backup_production_postgres.py \
   --retention-days 30
 ```
 
-The environment file must be a regular file with permissions that exclude group and other users (for example, `chmod 600 .env.production`). The destination directory must exclude group and other users (for example, `chmod 700 /mnt/medusa-backups`). The script writes files named `medusa-postgres-YYYYMMDDTHHMMSSZ.dump` with mode 0600. It prunes only expired regular files matching that exact naming pattern, and only after a new backup has been verified. Retention is local cleanup, not an off-host backup policy.
+The environment file must be a regular file with permissions that exclude group and other users (for example, `chmod 600 .env.production`). The destination directory must exclude group and other users (for example, `chmod 700 /mnt/medusa-backups`). The script writes files named `medusa-postgres-YYYYMMDDTHHMMSSffffffZ.dump` with mode 0600. It prunes only expired regular files matching that exact naming pattern, and only after a new backup has been verified. Retention is local cleanup, not an off-host backup policy.
 
 Schedule the command using the host's cron or systemd timer under an account that can access Docker and the protected destination. For example, a daily 02:15 cron entry (adjust absolute paths and schedule for the host):
 
