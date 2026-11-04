@@ -123,9 +123,7 @@ def main() -> int:
     parser.add_argument("--remote-dir", default="medusa-postgres-backups")
     args = parser.parse_args()
     try:
-        destination = replicate_backup(
-            args.backup_file, args.config, args.remote, args.remote_dir
-        )
+        destination = replicate_backup(args.backup_file, args.config, args.remote, args.remote_dir)
     except (OSError, RuntimeError, ValueError) as exc:
         print(f"Off-site backup replication failed: {exc}", file=sys.stderr)
         return 1
