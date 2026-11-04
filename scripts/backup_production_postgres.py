@@ -10,10 +10,10 @@ import sys
 import tempfile
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import BinaryIO, Callable
+from typing import Callable
 
 ROOT = Path(__file__).resolve().parents[1]
-BACKUP_PATTERN = re.compile(r"^medusa-postgres-\d{8}T\d{6}Z\.dump$")
+BACKUP_PATTERN = re.compile(r"^medusa-postgres-\d{8}T\d{12}Z\.dump$")
 DOCKER_DATA_ROOTS = (
     Path("/var/lib/docker"),
     Path("/var/lib/containers"),
