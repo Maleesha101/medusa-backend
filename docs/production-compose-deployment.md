@@ -102,27 +102,18 @@ Monitor the scheduler's exit status and alert on failed or missing daily backups
 
 ### Restore verification drill
 
-Periodically test a backup against a disposable PostgreSQL container. This example does not publish a database port or connect to the production database:
+The backup script's `pg_restore --list` check confirms that PostgreSQL can read the archive directory; it does not prove that the archive can be restored. Use the dedicated verification script periodically to perform a real restore into a disposable PostgreSQL 16 container:
 
 ```bash
-set -euo pipefail
-BACKUP_FILE=/mnt/medusa-backups/medusa-postgres-YYYYMMDDTHHMMSSffffffZ.dump
-RESTORE_PASSWORD="$(openssl rand -hex 32)"
-docker run -d --rm --name medusa-restore-drill \
-  -e POSTGRES_PASSWORD="$RESTORE_PASSWORD" postgres:16-alpine
-trap 'docker rm -f medusa-restore-drill >/dev/null 2>&1 || true' EXIT
-for attempt in {1..30}; do
-  if docker exec medusa-restore-drill pg_isready -U postgres; then break; fi
-  sleep 2
-done
-docker exec medusa-restore-drill pg_isready -U postgres
-docker exec medusa-restore-drill createdb -U postgres restore_drill
-docker exec -i medusa-restore-drill pg_restore -U postgres -d restore_drill \
-  --no-owner --no-privileges < "$BACKUP_FILE"
-docker exec medusa-restore-drill psql -U postgres -d restore_drill -c '\dt'
+python scripts/verify_production_postgres_restore.py \
+  /mnt/medusa-backups/medusa-postgres-YYYYMMDDTHHMMSSffffffZ.dump
 ```
 
-Confirm the expected application tables and perform application-level checks against the disposable database. Remove the disposable container after the drill. Do not point this procedure at the production database. Any production restore requires an approved recovery plan, a fresh safety backup, a confirmed target, and a deliberate maintenance window; never automatically overwrite production data.
+The script validates the input file, starts a uniquely named container on Docker's `none` network (no published ports, production Compose network, or persistent volumes), waits for readiness with a bounded retry count, restores the archive, and checks that the expected MEDUSA core tables are present. It always attempts to remove the disposable container. Docker must be available to the invoking host account, and the PostgreSQL 16 image must be available locally or pullable.
+
+A successful run proves that the archive can be restored and that the core schema exists; it is not a complete application-level recovery certification. For higher assurance, periodically restore into an isolated staging environment and run application integration checks against that restored database.
+
+This command is verification-only. It does not read `.env.production`, use production database credentials, mount production volumes, or connect to the production database. Never modify it to target production as a shortcut. Any production restore requires a separately approved recovery plan, a fresh safety backup, a confirmed target, and a deliberate maintenance window; never automatically overwrite production data.
 
 Do not use `docker compose down -v` as part of backup or restore. It deletes named volume data.
 
