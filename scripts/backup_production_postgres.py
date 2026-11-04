@@ -38,7 +38,10 @@ def _require_backup_directory(path: Path) -> Path:
         raise ValueError("The backup destination must be an existing directory.")
     if resolved == ROOT or ROOT in resolved.parents:
         raise ValueError("The backup destination must be outside the repository.")
-    if any(resolved == root or root in resolved.parents for root in DOCKER_DATA_ROOTS):
+    if any(
+        resolved == root or root in resolved.parents or resolved in root.parents
+        for root in DOCKER_DATA_ROOTS
+    ):
         raise ValueError("The backup destination must be outside Docker and database data directories.")
     if resolved.stat().st_mode & 0o077:
         raise ValueError("The backup directory must have private permissions (for example, chmod 700).")
