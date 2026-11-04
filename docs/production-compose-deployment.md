@@ -2,7 +2,7 @@
 
 This profile is for the MEDUSA application/control plane on a dedicated application host. It is separate from the local-development `compose.yaml`; do not replace the local workflow with it.
 
-The profile does not provision a VPS, configure a host firewall or TLS reverse proxy, provide a backup service, or isolate hostile challenge code. Keep `SANDBOX_PROVIDER=unavailable`. The API is bound to host loopback so a separately managed reverse proxy can terminate HTTPS. PostgreSQL and Redis have no published host ports.
+The profile does not provision a VPS, configure a host firewall or TLS reverse proxy, provide off-host backup storage, or isolate hostile challenge code. Keep `SANDBOX_PROVIDER=unavailable`. The API is bound to host loopback so a separately managed reverse proxy can terminate HTTPS. PostgreSQL and Redis have no published host ports.
 
 ## Prerequisites
 
@@ -73,15 +73,58 @@ The API should return HTTP 200 with `{"status":"ready"}`. The host port is loopb
 
 ## Backup and restore
 
-Take and verify a database backup before every migration or release. For example, write a custom-format dump to a protected location on the host:
+The repository includes a host-invoked backup script. It streams a PostgreSQL custom-format dump from the Compose database, verifies the archive with `pg_restore --list` inside the PostgreSQL container, and only then atomically publishes the completed file. Failed dumps or verification do not leave a file with the completed-backup name.
+
+Prepare a dedicated, protected backup destination outside the repository and Docker/database data directories. Prefer a separately mounted encrypted disk or backup volume. The directory must already exist and be private:
 
 ```bash
-docker compose --env-file .env.production -f compose.production.yaml exec -T postgres pg_dump -U medusa -d medusa -Fc > medusa-$(date +%F-%H%M%S).dump
+sudo install -d -m 700 -o "$USER" -g "$(id -gn)" /mnt/medusa-backups
 ```
 
-Encrypt and copy backups off-host, restrict access, define retention, and periodically test restoration into a disposable PostgreSQL instance. Named volumes are persistence across container recreation, not backups. Redis contains cache/rate-limit state and append-only persistence; decide separately whether its data needs backup for the deployment's recovery objectives.
+Run from the repository root (the backup destination must be an absolute path):
 
-To restore a database dump, stop application writes, take a fresh safety backup, and restore into the intended database using `pg_restore`. Confirm the target database and dump before running destructive restore commands.
+```bash
+python scripts/backup_production_postgres.py \
+  --env-file .env.production \
+  --backup-dir /mnt/medusa-backups \
+  --retention-days 30
+```
+
+The environment file must be a regular file with permissions that exclude group and other users (for example, `chmod 600 .env.production`). The destination directory must exclude group and other users (for example, `chmod 700 /mnt/medusa-backups`). The script writes files named `medusa-postgres-YYYYMMDDTHHMMSSffffffZ.dump` with mode 0600. It prunes only expired regular files matching that exact naming pattern, and only after a new backup has been verified. Retention is local cleanup, not an off-host backup policy.
+
+Schedule the command using the host's cron or systemd timer under an account that can access Docker and the protected destination. For example, a daily 02:15 cron entry (adjust absolute paths and schedule for the host):
+
+```cron
+15 2 * * * /usr/bin/python3 /opt/medusa/scripts/backup_production_postgres.py --env-file /opt/medusa/.env.production --backup-dir /mnt/medusa-backups --retention-days 30
+```
+
+Monitor the scheduler's exit status and alert on failed or missing daily backups. Copy verified dumps to an independent off-host destination, encrypt them in transit and at rest, restrict access, and define retention according to the recovery objectives. The script does not perform encryption or off-host transfer. Named volumes are persistence across container recreation, not backups. Redis contains cache/rate-limit state and append-only persistence; decide separately whether its data needs backup for the deployment's recovery objectives.
+
+### Restore verification drill
+
+Periodically test a backup against a disposable PostgreSQL container. This example does not publish a database port or connect to the production database:
+
+```bash
+set -euo pipefail
+BACKUP_FILE=/mnt/medusa-backups/medusa-postgres-YYYYMMDDTHHMMSSffffffZ.dump
+RESTORE_PASSWORD="$(openssl rand -hex 32)"
+docker run -d --rm --name medusa-restore-drill \
+  -e POSTGRES_PASSWORD="$RESTORE_PASSWORD" postgres:16-alpine
+trap 'docker rm -f medusa-restore-drill >/dev/null 2>&1 || true' EXIT
+for attempt in {1..30}; do
+  if docker exec medusa-restore-drill pg_isready -U postgres; then break; fi
+  sleep 2
+done
+docker exec medusa-restore-drill pg_isready -U postgres
+docker exec medusa-restore-drill createdb -U postgres restore_drill
+docker exec -i medusa-restore-drill pg_restore -U postgres -d restore_drill \
+  --no-owner --no-privileges < "$BACKUP_FILE"
+docker exec medusa-restore-drill psql -U postgres -d restore_drill -c '\dt'
+```
+
+Confirm the expected application tables and perform application-level checks against the disposable database. Remove the disposable container after the drill. Do not point this procedure at the production database. Any production restore requires an approved recovery plan, a fresh safety backup, a confirmed target, and a deliberate maintenance window; never automatically overwrite production data.
+
+Do not use `docker compose down -v` as part of backup or restore. It deletes named volume data.
 
 ## Release and rollback
 
