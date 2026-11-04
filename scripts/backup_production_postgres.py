@@ -76,7 +76,7 @@ def create_backup(
     env_path = _require_private_file(env_file)
     destination = _require_backup_directory(backup_dir)
     observed_at = now or datetime.now(timezone.utc)
-    timestamp = observed_at.astimezone(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    timestamp = observed_at.astimezone(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
     final_path = destination / f"medusa-postgres-{timestamp}.dump"
     if final_path.exists():
         raise ValueError("A backup already exists for this timestamp; retry in the next second.")
@@ -118,8 +118,8 @@ def create_backup(
                 stderr=subprocess.DEVNULL,
                 check=True,
             )
-        os.replace(temporary_path, final_path)
-        os.chmod(final_path, 0o600)
+        os.link(temporary_path, final_path)
+        temporary_path.unlink()
     except (OSError, subprocess.SubprocessError):
         temporary_path.unlink(missing_ok=True)
         raise RuntimeError(
