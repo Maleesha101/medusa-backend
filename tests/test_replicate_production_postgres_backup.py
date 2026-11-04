@@ -36,9 +36,7 @@ def test_replicates_and_verifies_only_selected_file(tmp_path: Path) -> None:
         assert kwargs["stderr"] == subprocess.DEVNULL
         return SimpleNamespace(returncode=0)
 
-    destination = replicate.replicate_backup(
-        backup, config, "vault", runner=runner
-    )
+    destination = replicate.replicate_backup(backup, config, "vault", runner=runner)
 
     assert destination == (
         "vault:medusa-postgres-backups/medusa-postgres-20261104T030000000000Z.dump"
