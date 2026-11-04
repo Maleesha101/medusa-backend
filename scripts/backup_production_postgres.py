@@ -10,7 +10,7 @@ import sys
 import tempfile
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Callable
+from collections.abc import Callable
 
 ROOT = Path(__file__).resolve().parents[1]
 BACKUP_PATTERN = re.compile(r"^medusa-postgres-\d{8}T\d{12}Z\.dump$")
