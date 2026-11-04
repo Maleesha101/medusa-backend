@@ -8,8 +8,8 @@ import re
 import subprocess
 import sys
 import tempfile
-from datetime import UTC, datetime, timedelta
 from collections.abc import Callable
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
