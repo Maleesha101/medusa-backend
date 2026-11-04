@@ -88,7 +88,7 @@ The health state becomes healthy only after the API can reach its database. Stop
 
 ## Production Compose deployment
 
-The separate `compose.production.yaml` profile keeps PostgreSQL and Redis off published host ports and binds the API to loopback for a separately managed TLS reverse proxy. It requires production secrets and SMTP settings and applies additional hardening to the API container. It does not configure TLS, host firewall rules, backups, or sandbox isolation.
+The separate `compose.production.yaml` profile keeps PostgreSQL and Redis off published host ports and binds the API to loopback for a separately managed TLS reverse proxy. It requires production secrets and SMTP settings and applies additional hardening to the API container. It does not configure TLS, host firewall rules, off-host backup storage, or sandbox isolation.
 
 Follow [the production Compose deployment guide](docs/production-compose-deployment.md). Validate the rendered profile before starting it:
 
@@ -102,6 +102,8 @@ docker compose --env-file .env.production -f compose.production.yaml up --build 
 ```
 
 Never commit `.env.production`. Keep `SANDBOX_PROVIDER=unavailable`; this profile is for the trusted application/control plane only.
+
+Create a verified PostgreSQL backup to a private destination outside the repository and Docker data directories with `python scripts/backup_production_postgres.py --env-file .env.production --backup-dir /absolute/private/backup/path --retention-days 30`. See the [backup and restore guide](docs/production-compose-deployment.md#backup-and-restore) before scheduling backups or performing a restore drill.
 
 GitHub Actions builds the Docker image for pull requests and pushes to main without publishing it or requiring registry credentials. CI also validates the production Compose security-sensitive defaults. This validates configuration and image construction, not a production deployment or sandbox isolation.
 
