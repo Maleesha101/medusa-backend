@@ -120,3 +120,24 @@ def test_rejects_nonpositive_retention(tmp_path: Path) -> None:
 
     with pytest.raises(ValueError, match="at least 1"):
         backup.create_backup(env_file, backup_dir, retention_days=0, runner=fake_runner)
+
+
+def test_rejects_missing_backup_directory(tmp_path: Path) -> None:
+    env_file, _ = private_inputs(tmp_path)
+
+    with pytest.raises(FileNotFoundError):
+        backup.create_backup(env_file, tmp_path / "missing", runner=fake_runner)
+
+
+def test_rejects_backup_directory_overlapping_docker_data_root(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    env_file, _ = private_inputs(tmp_path)
+    docker_root = tmp_path / "docker-data"
+    nested = docker_root / "backups"
+    nested.mkdir(parents=True, mode=0o700)
+    nested.chmod(0o700)
+    monkeypatch.setattr(backup, "DOCKER_DATA_ROOTS", (docker_root,))
+
+    with pytest.raises(ValueError, match="Docker and database data directories"):
+        backup.create_backup(env_file, nested, runner=fake_runner)
