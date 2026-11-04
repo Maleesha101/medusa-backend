@@ -8,7 +8,7 @@ import re
 import subprocess
 import sys
 import tempfile
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from collections.abc import Callable
 
@@ -26,7 +26,9 @@ def _require_private_file(path: Path) -> Path:
     if not resolved.is_file():
         raise ValueError("The production environment file must be a regular file.")
     if resolved.stat().st_mode & 0o077:
-        raise ValueError("The production environment file must not be accessible by group or others.")
+        raise ValueError(
+            "The production environment file must not be accessible by group or others."
+        )
     return resolved
 
 
@@ -42,9 +44,13 @@ def _require_backup_directory(path: Path) -> Path:
         resolved == root or root in resolved.parents or resolved in root.parents
         for root in DOCKER_DATA_ROOTS
     ):
-        raise ValueError("The backup destination must be outside Docker and database data directories.")
+        raise ValueError(
+            "The backup destination must be outside Docker and database data directories."
+        )
     if resolved.stat().st_mode & 0o077:
-        raise ValueError("The backup directory must have private permissions (for example, chmod 700).")
+        raise ValueError(
+            "The backup directory must have private permissions (for example, chmod 700)."
+        )
     if not os.access(resolved, os.W_OK):
         raise ValueError("The backup directory is not writable by the current user.")
     return resolved
@@ -78,8 +84,8 @@ def create_backup(
         raise ValueError("Retention days must be at least 1.")
     env_path = _require_private_file(env_file)
     destination = _require_backup_directory(backup_dir)
-    observed_at = now or datetime.now(timezone.utc)
-    timestamp = observed_at.astimezone(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
+    observed_at = now or datetime.now(UTC)
+    timestamp = observed_at.astimezone(UTC).strftime("%Y%m%dT%H%M%S%fZ")
     final_path = destination / f"medusa-postgres-{timestamp}.dump"
     if final_path.exists():
         raise ValueError("A backup already exists for this timestamp; retry in the next second.")
