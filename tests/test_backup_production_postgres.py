@@ -38,7 +38,7 @@ def test_creates_private_verified_backup(tmp_path: Path) -> None:
         env_file, backup_dir, now=observed_at, runner=fake_runner
     )
 
-    assert result.name == "medusa-postgres-20261104T030000Z.dump"
+    assert result.name == "medusa-postgres-20261104T030000000000Z.dump"
     assert result.read_bytes() == b"custom-format-dump"
     assert result.stat().st_mode & 0o777 == 0o600
     assert not list(backup_dir.glob("*.tmp"))
@@ -97,8 +97,8 @@ def test_failed_dump_or_verification_leaves_no_completed_backup(
 def test_retention_removes_only_expired_matching_regular_files(tmp_path: Path) -> None:
     _, backup_dir = private_inputs(tmp_path)
     now = datetime(2026, 11, 4, tzinfo=timezone.utc)
-    expired = backup_dir / "medusa-postgres-20261001T000000Z.dump"
-    recent = backup_dir / "medusa-postgres-20261103T000000Z.dump"
+    expired = backup_dir / "medusa-postgres-20261001T000000000000Z.dump"
+    recent = backup_dir / "medusa-postgres-20261103T000000000000Z.dump"
     unrelated = backup_dir / "customer-export.dump"
     expired.write_bytes(b"old")
     recent.write_bytes(b"new")
