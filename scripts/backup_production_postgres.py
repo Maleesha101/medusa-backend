@@ -108,7 +108,7 @@ def create_backup(
         "postgres",
     ]
     try:
-        with os.fdopen(descriptor, "wb") as dump_file:
+        with os.fdopen(descriptor, "w+b") as dump_file:
             runner(
                 [*compose, "pg_dump", "-U", "medusa", "-d", "medusa", "-Fc"],
                 cwd=ROOT,
