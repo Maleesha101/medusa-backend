@@ -42,9 +42,9 @@ def test_replicates_and_verifies_only_selected_file(tmp_path: Path) -> None:
         "vault:medusa-postgres-backups/medusa-postgres-20261104T030000000000Z.dump"
     )
     assert len(commands) == 2
-    assert commands[0][2] == "copyto"
+    assert commands[0][3] == "copyto"
     assert "--immutable" in commands[0]
-    assert commands[1][2] == "check"
+    assert commands[1][3] == "check"
     assert "--download" in commands[1]
     assert str(backup) in commands[0]
     assert str(backup) in commands[1]
