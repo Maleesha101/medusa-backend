@@ -101,9 +101,7 @@ def test_restore_failure_cleans_temp_download(tmp_path: Path) -> None:
 
     def runner(command: list[str], **kwargs: object) -> SimpleNamespace:
         if "lsf" in command:
-            return SimpleNamespace(
-                stdout="medusa-postgres-20261105T021500000000Z.dump\n"
-            )
+            return SimpleNamespace(stdout="medusa-postgres-20261105T021500000000Z.dump\n")
         Path(command[-1]).write_bytes(b"downloaded")
         return SimpleNamespace(returncode=0)
 
