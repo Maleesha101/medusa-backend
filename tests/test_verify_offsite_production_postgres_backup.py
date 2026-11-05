@@ -31,9 +31,7 @@ def test_selects_newest_valid_timestamp_and_ignores_other_entries() -> None:
         ]
     )
 
-    assert drill.select_latest_backup(listing) == (
-        "medusa-postgres-20261105T021500000000Z.dump"
-    )
+    assert drill.select_latest_backup(listing) == ("medusa-postgres-20261105T021500000000Z.dump")
 
 
 def test_empty_or_invalid_listing_fails() -> None:
@@ -53,10 +51,7 @@ def test_downloads_newest_backup_verifies_and_cleans_temp_file(tmp_path: Path) -
         commands.append(command)
         if "lsf" in command:
             return SimpleNamespace(
-                stdout=(
-                    "medusa-postgres-20261104T030000000000Z.dump\n"
-                    f"{selected}\n"
-                )
+                stdout=(f"medusa-postgres-20261104T030000000000Z.dump\n{selected}\n")
             )
         Path(command[-1]).write_bytes(b"restorable-dump")
         return SimpleNamespace(returncode=0)
@@ -90,9 +85,7 @@ def test_download_failure_cleans_temp_directory(tmp_path: Path) -> None:
 
     def runner(command: list[str], **kwargs: object) -> SimpleNamespace:
         if "lsf" in command:
-            return SimpleNamespace(
-                stdout="medusa-postgres-20261105T021500000000Z.dump\n"
-            )
+            return SimpleNamespace(stdout="medusa-postgres-20261105T021500000000Z.dump\n")
         raise subprocess.CalledProcessError(1, command)
 
     with pytest.raises(RuntimeError, match="remote listing or download"):
