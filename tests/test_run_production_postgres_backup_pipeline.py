@@ -69,8 +69,6 @@ def test_replication_failure_propagates_without_fallback(
     monkeypatch.setattr(pipeline, "replicate_backup", fail_replicate)
 
     with pytest.raises(RuntimeError, match="replication failed"):
-        pipeline.run_backup_pipeline(
-            Path("env"), Path("backups"), Path("rclone.conf"), "vault"
-        )
+        pipeline.run_backup_pipeline(Path("env"), Path("backups"), Path("rclone.conf"), "vault")
 
     assert calls == [new_backup]
