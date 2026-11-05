@@ -92,13 +92,7 @@ python scripts/backup_production_postgres.py \
 
 The environment file must be a regular file with permissions that exclude group and other users (for example, `chmod 600 .env.production`). The destination directory must exclude group and other users (for example, `chmod 700 /mnt/medusa-backups`). The script writes files named `medusa-postgres-YYYYMMDDTHHMMSSffffffZ.dump` with mode 0600. It prunes only expired regular files matching that exact naming pattern, and only after a new backup has been verified. Retention is local cleanup, not an off-host backup policy.
 
-Schedule the command using the host's cron or systemd timer under an account that can access Docker and the protected destination. For example, a daily 02:15 cron entry (adjust absolute paths and schedule for the host):
-
-```cron
-15 2 * * * /usr/bin/python3 /opt/medusa/scripts/backup_production_postgres.py --env-file /opt/medusa/.env.production --backup-dir /mnt/medusa-backups --retention-days 30
-```
-
-Monitor the scheduler's exit status and alert on failed or missing daily backups. Copy verified dumps to an independent off-host destination, encrypt them in transit and at rest, restrict access, and define retention according to the recovery objectives. The script does not perform encryption or off-host transfer. Named volumes are persistence across container recreation, not backups. Redis contains cache/rate-limit state and append-only persistence; decide separately whether its data needs backup for the deployment's recovery objectives.
+For a scheduled deployment, use the repository's systemd oneshot service and persistent timer described in [Scheduled backup pipeline](#scheduled-backup-pipeline) below. The standalone backup command remains useful for manual runs. Monitor the service's exit status and alert on failed or missing daily backups. Named volumes are persistence across container recreation, not backups. Redis contains cache/rate-limit state and append-only persistence; decide separately whether its data needs backup for the deployment's recovery objectives.
 
 ### Restore verification drill
 
@@ -140,6 +134,45 @@ The rclone crypt password and optional salt are required to recover the backup. 
 
 To recover a file for a restore drill, copy the selected object back through the same crypt remote to a private local directory, then pass the downloaded dump to `scripts/verify_production_postgres_restore.py`. Do not restore directly to production.
 
+
+### Scheduled backup pipeline
+
+Use the combined runner so off-site replication always follows a newly created, verified local dump and receives that exact file path. A failure in either stage returns a non-zero exit code; the local dump is retained if replication fails.
+
+The example units live in `deploy/systemd/`. Adjust the repository, virtual-environment, environment-file, backup-directory, rclone-config, and remote paths/names in `medusa-backup.service` before installing. The service runs as the dedicated `medusa-backup` account and uses the `docker` group to access Docker. Membership in the Docker group is effectively root-equivalent on typical Linux hosts: grant it only to a trusted operator account, never to the API service or challenge workloads.
+
+Prepare the account and private files. The backup directory must be writable only by the service account; the production environment and rclone configuration must be readable by that account and inaccessible to group/others:
+
+```bash
+sudo useradd --system --create-home --home-dir /var/lib/medusa-backup --shell /usr/sbin/nologin medusa-backup
+sudo usermod -aG docker medusa-backup
+sudo install -d -o medusa-backup -g medusa-backup -m 700 /mnt/medusa-backups
+sudo install -d -o root -g root -m 755 /etc/medusa
+sudo install -o medusa-backup -g medusa-backup -m 600 /path/to/.env.production /etc/medusa/.env.production
+sudo install -o medusa-backup -g medusa-backup -m 600 /path/to/rclone.conf /etc/medusa/rclone.conf
+```
+
+Install the reviewed application checkout and its virtual environment at the paths configured in the service unit (the example expects `/opt/medusa` and `/opt/medusa/venv`). Install the unit files, review the service command and schedule, then enable the timer:
+
+```bash
+sudo install -m 644 deploy/systemd/medusa-backup.service /etc/systemd/system/medusa-backup.service
+sudo install -m 644 deploy/systemd/medusa-backup.timer /etc/systemd/system/medusa-backup.timer
+sudo systemctl daemon-reload
+sudo systemctl enable --now medusa-backup.timer
+systemctl list-timers medusa-backup.timer
+```
+
+The timer runs daily at 02:15 host-local time, adds up to ten minutes of randomized delay, and has `Persistent=true` so a missed run is started after the host returns. Test the pipeline deliberately before relying on the timer:
+
+```bash
+sudo systemctl start medusa-backup.service
+sudo systemctl status medusa-backup.service
+sudo journalctl -u medusa-backup.service --since today
+```
+
+A successful service run means both a fresh local backup and its encrypted off-site copy were verified. A failed service is visible through systemd state and the journal. The unit includes an optional `OnFailure` hook. To use it, install `deploy/systemd/medusa-backup-alert@.service.example` as `/etc/systemd/system/medusa-backup-alert@.service`, replace its example `ExecStart` with an alert command supplied by your monitoring system, then reload systemd. The repository does not ship an alert receiver or send messages itself. Also configure external monitoring to alert if the timer has not completed successfully within your recovery objective; a timer being active does not prove a backup succeeded.
+
+The service unit intentionally contains paths and a remote name, not passwords or cloud credentials. Protect the production env file and rclone crypt configuration separately. Keep the crypt password/salt recovery material in an approved secrets manager. Review the unit's hardening and filesystem paths for the target host before enabling it.
 Do not use `docker compose down -v` as part of backup or restore. It deletes named volume data.
 
 ## Release and rollback
