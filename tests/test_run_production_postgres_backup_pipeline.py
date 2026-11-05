@@ -14,15 +14,11 @@ def test_pipeline_replicates_exact_new_backup(monkeypatch: pytest.MonkeyPatch) -
     backup = backup_dir / "medusa-postgres-20261105T021500000000Z.dump"
     calls: list[tuple[object, ...]] = []
 
-    def fake_create(
-        env: Path, directory: Path, retention: int
-    ) -> Path:
+    def fake_create(env: Path, directory: Path, retention: int) -> Path:
         calls.append(("backup", env, directory, retention))
         return backup
 
-    def fake_replicate(
-        selected: Path, config: Path, remote: str, remote_dir: str
-    ) -> str:
+    def fake_replicate(selected: Path, config: Path, remote: str, remote_dir: str) -> str:
         calls.append(("replicate", selected, config, remote, remote_dir))
         return f"{remote}:{remote_dir}/{selected.name}"
 
@@ -53,9 +49,7 @@ def test_replication_is_not_attempted_when_backup_fails(
     monkeypatch.setattr(pipeline, "replicate_backup", unexpected_replicate)
 
     with pytest.raises(RuntimeError, match="backup failed"):
-        pipeline.run_backup_pipeline(
-            Path("env"), Path("backups"), Path("rclone.conf"), "vault"
-        )
+        pipeline.run_backup_pipeline(Path("env"), Path("backups"), Path("rclone.conf"), "vault")
 
 
 def test_replication_failure_propagates_without_fallback(
