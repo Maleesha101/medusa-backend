@@ -1,0 +1,6 @@
+[Unit]
+Description=Optional MEDUSA backup failure notification hook for %I
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/medusa-backup-alert %I
