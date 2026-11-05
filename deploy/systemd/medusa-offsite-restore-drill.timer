@@ -1,0 +1,12 @@
+[Unit]
+Description=Run MEDUSA encrypted off-site PostgreSQL restore drill weekly
+
+[Timer]
+OnCalendar=Sun *-*-* 04:00:00
+Persistent=true
+RandomizedDelaySec=30m
+AccuracySec=1m
+Unit=medusa-offsite-restore-drill.service
+
+[Install]
+WantedBy=timers.target

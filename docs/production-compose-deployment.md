@@ -175,6 +175,34 @@ A successful service run means both a fresh local backup and its encrypted off-s
 The service unit intentionally contains paths and a remote name, not passwords or cloud credentials. Protect the production env file and rclone crypt configuration separately. Keep the crypt password/salt recovery material in an approved secrets manager. Review the unit's hardening and filesystem paths for the target host before enabling it.
 Do not use `docker compose down -v` as part of backup or restore. It deletes named volume data.
 
+
+### Weekly encrypted off-site restore drill
+
+The daily backup pipeline verifies that a fresh dump was created and copied to the encrypted remote. It does not prove that the remote copy can still be decrypted and restored. The weekly restore drill closes that gap by listing the configured rclone `crypt` remote, selecting the newest valid MEDUSA backup filename by its embedded UTC timestamp, downloading only that object into a private temporary directory, and invoking the existing isolated PostgreSQL restore verifier.
+
+Install the additional service and timer alongside the daily backup units:
+
+```bash
+sudo install -m 644 deploy/systemd/medusa-offsite-restore-drill.service /etc/systemd/system/medusa-offsite-restore-drill.service
+sudo install -m 644 deploy/systemd/medusa-offsite-restore-drill.timer /etc/systemd/system/medusa-offsite-restore-drill.timer
+sudo systemctl daemon-reload
+sudo systemctl enable --now medusa-offsite-restore-drill.timer
+systemctl list-timers medusa-offsite-restore-drill.timer
+```
+
+The example runs Sundays at 04:00 host-local time with up to 30 minutes of randomized delay and `Persistent=true` catch-up behavior. It uses the same dedicated `medusa-backup` account, Docker access, rclone crypt configuration, and `OnFailure` hook integration as the daily backup service. Review paths and alert receiver configuration before enabling it.
+
+Run a manual drill and inspect its status and logs:
+
+```bash
+sudo systemctl start medusa-offsite-restore-drill.service
+sudo systemctl status medusa-offsite-restore-drill.service
+sudo journalctl -u medusa-offsite-restore-drill.service --since today
+```
+
+A successful run proves that the newest matching remote object can be downloaded, decrypted through the crypt remote, and restored with the expected MEDUSA core tables into a disposable PostgreSQL container on Docker's `none` network. The downloaded temporary file is removed after success or failure. The script does not modify remote objects, local retained backups, production credentials, or production database state.
+
+Ensure `/mnt/medusa-backups` has enough free space for one full downloaded dump in addition to normal local retention. The drill fails if the remote has no valid matching dump, download fails, or restore verification fails. Alert on service failure and on a missed weekly success from external monitoring. This remains a schema-level restore drill, not full application recovery certification; periodically run staging-level application checks under a separately approved process.
 ## Release and rollback
 
 1. Take and verify a database backup.
