@@ -1,10 +1,13 @@
 """Minimal SMTP delivery for password-reset messages."""
 
+import logging
 import smtplib
 import ssl
 from email.message import EmailMessage
 
 from app.core.config import get_settings
+
+logger = logging.getLogger(__name__)
 
 
 def send_password_reset_email(email: str, reset_link: str) -> bool:
@@ -15,6 +18,7 @@ def send_password_reset_email(email: str, reset_link: str) -> bool:
     """
     settings = get_settings()
     if not settings.smtp_host or not settings.smtp_from_email:
+        logger.warning("Password-reset email delivery is unavailable: SMTP is not configured.")
         return False
 
     message = EmailMessage()
@@ -24,16 +28,21 @@ def send_password_reset_email(email: str, reset_link: str) -> bool:
     message.set_content(
         "A password reset was requested for your MEDUSA account. "
         "Use the link below within the configured validity period. "
-        "If you did not request this, you can ignore this email.\n\n"
-        f"{reset_link}\n"
+        "If you did not request this, you can ignore this email.\\n\\n"
+        f"{reset_link}\\n"
     )
 
-    with smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=10) as client:
-        if settings.smtp_use_tls:
-            client.starttls(context=ssl.create_default_context())
-        if settings.smtp_username:
-            client.login(settings.smtp_username, settings.smtp_password or "")
-        client.send_message(message)
+    try:
+        with smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=10) as client:
+            if settings.smtp_use_tls:
+                client.starttls(context=ssl.create_default_context())
+            if settings.smtp_username:
+                client.login(settings.smtp_username, settings.smtp_password or "")
+            client.send_message(message)
+    except (OSError, smtplib.SMTPException):
+        # Never log exception details: SMTP errors may contain addresses or host data.
+        logger.error("Password-reset email delivery failed.")
+        return False
     return True
 
 
