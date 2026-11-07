@@ -137,7 +137,7 @@ def logout(
 
 
 _PASSWORD_RESET_MESSAGE = (
-    "If an account matches that email address, password-reset instructions will be sent."
+    "If an account matches that email address, the password-reset request has been accepted."
 )
 
 
