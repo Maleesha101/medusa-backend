@@ -1,7 +1,6 @@
+import smtplib
 from types import SimpleNamespace
 from unittest.mock import MagicMock
-
-import smtplib
 
 from app.core import email as email_service
 
