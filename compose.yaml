@@ -32,8 +32,8 @@ services:
     image: axllent/mailpit:v1.27
     container_name: medusa-mailpit
     ports:
-      - "8025:8025"
-      - "1025:1025"
+      - "127.0.0.1:8025:8025"
+      - "127.0.0.1:1025:1025"
     restart: unless-stopped
 
   postgres:
