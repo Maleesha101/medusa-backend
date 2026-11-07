@@ -11,12 +11,12 @@ services:
       REDIS_URL: redis://redis:6379/0
       CORS_ORIGINS: '["http://localhost:8080"]'
       PASSWORD_RESET_URL: ${PASSWORD_RESET_URL:-http://localhost:8080/reset-password}
-      SMTP_HOST: ${SMTP_HOST:-}
-      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_HOST: ${SMTP_HOST:-mailpit}
+      SMTP_PORT: ${SMTP_PORT:-1025}
       SMTP_USERNAME: ${SMTP_USERNAME:-}
       SMTP_PASSWORD: ${SMTP_PASSWORD:-}
-      SMTP_FROM_EMAIL: ${SMTP_FROM_EMAIL:-}
-      SMTP_USE_TLS: ${SMTP_USE_TLS:-true}
+      SMTP_FROM_EMAIL: ${SMTP_FROM_EMAIL:-no-reply@medusa.local}
+      SMTP_USE_TLS: ${SMTP_USE_TLS:-false}
     ports:
       - "8000:8000"
     depends_on:
@@ -24,6 +24,16 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      mailpit:
+        condition: service_started
+    restart: unless-stopped
+
+  mailpit:
+    image: axllent/mailpit:v1.27
+    container_name: medusa-mailpit
+    ports:
+      - "8025:8025"
+      - "1025:1025"
     restart: unless-stopped
 
   postgres:
