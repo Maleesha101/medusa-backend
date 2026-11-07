@@ -10,6 +10,13 @@ services:
       DATABASE_URL: postgresql+psycopg://medusa:medusa_dev_only@postgres:5432/medusa
       REDIS_URL: redis://redis:6379/0
       CORS_ORIGINS: '["http://localhost:8080"]'
+      PASSWORD_RESET_URL: ${PASSWORD_RESET_URL:-http://localhost:8080/reset-password}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM_EMAIL: ${SMTP_FROM_EMAIL:-}
+      SMTP_USE_TLS: ${SMTP_USE_TLS:-true}
     ports:
       - "8000:8000"
     depends_on:
