@@ -54,6 +54,8 @@ Organization and competition creation and lifecycle changes require an organizer
    docker compose up --build -d
    ```
 
+   The local stack includes Mailpit for password-reset email testing. Open its inbox at http://localhost:8025. The API sends mail to the `mailpit` Compose service on port `1025`; no SMTP account or credentials are needed. Mailpit's SMTP and web ports are bound to `127.0.0.1` only and must not be exposed publicly.
+
 3. Apply database migrations:
 
    ```bash
@@ -67,7 +69,7 @@ The local Compose API allows the Vite development origin `http://localhost:8080`
 If `GET /api/v1/live` succeeds but `GET /api/v1/ready` returns HTTP 503, the API process is running but its database readiness query failed. Check `docker compose ps` and `docker compose logs --tail=100 postgres api`, confirm the API's `DATABASE_URL` points to the reachable PostgreSQL service (use hostname `postgres` from inside Compose, not `localhost`), and verify PostgreSQL is healthy. Readiness uses `SELECT 1`; database migrations are not the cause of this particular probe failure.
 5. Use requests/medusa-submissions.http for a local end-to-end flag submission walkthrough. Run its named requests in order and replace example credentials/IDs as needed.
 
-Password recovery email delivery requires SMTP settings (`SMTP_HOST`, `SMTP_FROM_EMAIL`, and, when required by your provider, `SMTP_USERNAME` and `SMTP_PASSWORD`). SMTP is optional in local development: when it is absent or delivery fails, the reset request still returns the same generic response and the one-time token is not exposed to the browser or logs, but no email can be delivered. Configure a real SMTP provider in the backend environment before relying on password recovery. Production startup requires `SMTP_HOST` and `SMTP_FROM_EMAIL`. Reset tokens are never returned by the API. The Compose database password and signing key are development-only values. Replace both through deployment secrets before any non-local deployment. Do not commit .env or real credentials.
+Local Docker Compose configures the API to use Mailpit automatically (`SMTP_HOST=mailpit`, `SMTP_PORT=1025`, no TLS or credentials). After starting the stack, request a password reset from the frontend and inspect the captured message at http://localhost:8025; the email's link should point to the frontend's `/reset-password` route. For deployments outside local development, configure a real SMTP provider with `SMTP_HOST`, `SMTP_FROM_EMAIL`, and, when required, `SMTP_USERNAME` and `SMTP_PASSWORD`. Production startup requires `SMTP_HOST` and `SMTP_FROM_EMAIL`. If SMTP is absent or delivery fails, the reset API keeps its generic response and does not expose account existence, reset tokens, or internal delivery details. Reset tokens are never returned by the API. The Compose database password and signing key are development-only values. Replace both through deployment secrets before any non-local deployment. Do not commit .env or real credentials.
 
 ## Building and checking the API container
 
