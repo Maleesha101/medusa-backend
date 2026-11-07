@@ -62,6 +62,10 @@ docker compose --env-file .env.production -f compose.production.yaml logs --tail
 
 The API should return HTTP 200 with `{"status":"ready"}`. The host port is loopback-only; configure the reverse proxy to reach `127.0.0.1:8000`. Do not expose port 8000 directly to the public internet. PostgreSQL and Redis are reachable only on the Compose network.
 
+Set `CORS_ORIGINS` in `.env.production` to a JSON array containing the exact public frontend origins, for example `["https://app.example.com"]`. Include the scheme and any non-default port, but no URL path or trailing slash. Add each separately deployed frontend origin explicitly; do not use `*`. The API allows only the required HTTP methods and the `Authorization` and `Content-Type` headers. Recreate the API after changing this setting.
+
+If `/api/v1/live` returns 200 while `/api/v1/ready` returns 503, inspect `docker compose --env-file .env.production -f compose.production.yaml logs --tail=100 postgres api` and the Compose health state. The readiness check executes `SELECT 1` against PostgreSQL. Confirm the PostgreSQL container is healthy and that the API's configured database URL resolves to the Compose service; applying migrations does not fix a failed `SELECT 1` connectivity check.
+
 ## Runtime controls
 
 - The API runs using the non-root identity baked into the image, drops Linux capabilities, enables `no-new-privileges`, uses a read-only root filesystem, and has a bounded temporary filesystem.

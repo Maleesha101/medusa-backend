@@ -61,6 +61,10 @@ Organization and competition creation and lifecycle changes require an organizer
    ```
 
 4. Open the interactive API documentation at http://localhost:8000/docs.
+
+The local Compose API allows the Vite development origin `http://localhost:8080` by default. For another frontend origin, set `CORS_ORIGINS` to a JSON array of exact origins (scheme, host, and port; no path or trailing slash), for example `CORS_ORIGINS=["http://localhost:8080","http://127.0.0.1:8080"]`. Restart the API after changing it. Wildcard origins are rejected by configuration.
+
+If `GET /api/v1/live` succeeds but `GET /api/v1/ready` returns HTTP 503, the API process is running but its database readiness query failed. Check `docker compose ps` and `docker compose logs --tail=100 postgres api`, confirm the API's `DATABASE_URL` points to the reachable PostgreSQL service (use hostname `postgres` from inside Compose, not `localhost`), and verify PostgreSQL is healthy. Readiness uses `SELECT 1`; database migrations are not the cause of this particular probe failure.
 5. Use requests/medusa-submissions.http for a local end-to-end flag submission walkthrough. Run its named requests in order and replace example credentials/IDs as needed.
 
 Password recovery requires SMTP settings (`SMTP_HOST`, `SMTP_FROM_EMAIL`, and related credentials) to deliver reset links. Reset tokens are never returned by the API. The Compose database password and signing key are development-only values. Replace both through deployment secrets before any non-local deployment. Do not commit .env or real credentials.

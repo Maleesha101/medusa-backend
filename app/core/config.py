@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     api_v1_prefix: str = "/api/v1"
     database_url: str
     redis_url: str = "redis://localhost:6379/0"
+    cors_origins: list[str] = Field(default_factory=lambda: ["http://localhost:8080"])
     submission_request_limit: int = Field(default=60, ge=1, le=10000)
     incorrect_submission_limit: int = Field(default=10, ge=1, le=10000)
     submission_rate_window_seconds: int = Field(default=60, ge=1, le=86400)
@@ -57,6 +58,14 @@ class Settings(BaseSettings):
         extra="ignore",
         case_sensitive=False,
     )
+
+    @field_validator("cors_origins")
+    @classmethod
+    def validate_cors_origins(cls, value: list[str]) -> list[str]:
+        origins = [origin.strip().rstrip("/") for origin in value if origin.strip()]
+        if not origins or "*" in origins:
+            raise ValueError("CORS_ORIGINS must contain explicit origins; wildcard is not allowed")
+        return origins
 
     @field_validator("sandbox_provider")
     @classmethod
