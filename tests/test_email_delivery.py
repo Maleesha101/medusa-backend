@@ -18,7 +18,9 @@ def _settings(**overrides):
     return SimpleNamespace(**values)
 
 
-def test_password_reset_email_returns_false_when_smtp_is_not_configured(monkeypatch, caplog):
+def test_password_reset_email_returns_false_when_smtp_is_not_configured(
+    monkeypatch, caplog
+):
     monkeypatch.setattr(email_service, "get_settings", lambda: _settings())
 
     delivered = email_service.send_password_reset_email(
