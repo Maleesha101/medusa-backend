@@ -41,7 +41,10 @@ def send_password_reset_email(email: str, reset_link: str) -> bool:
         '<img src="cid:medusa-header-icon" alt="MEDUSA" '
         'style="display:block;max-width:56px;max-height:56px;object-fit:contain;">'
         if logo
-        else '<span style="font-size:22px;font-weight:800;letter-spacing:2px;color:#ffffff;">MEDUSA</span>'
+        else (
+            '<span style="font-size:22px;font-weight:800;letter-spacing:2px;'
+            'color:#ffffff;">MEDUSA</span>'
+        )
     )
 
     message = EmailMessage()
