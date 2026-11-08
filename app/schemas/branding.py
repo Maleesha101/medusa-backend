@@ -4,7 +4,7 @@ from pydantic import BaseModel, Field, field_validator
 
 
 class HeaderIconUpdate(BaseModel):
-    image_data_url: str | None = Field(default=None, max_length=700_000)
+    image_data_url: str | None = Field(max_length=700_000)
 
     @field_validator("image_data_url")
     @classmethod
