@@ -29,7 +29,7 @@ class Settings(BaseSettings):
     password_reset_confirm_limit_per_ip: int = Field(default=10, ge=1, le=1000)
     password_reset_rate_window_seconds: int = Field(default=600, ge=1, le=86400)
     password_reset_token_expire_minutes: int = Field(default=30, ge=5, le=120)
-    password_reset_url: str = "http://localhost:3000/reset-password"
+    password_reset_url: str = "http://localhost:8080/reset-password"
     smtp_host: str | None = None
     smtp_port: int = Field(default=587, ge=1, le=65535)
     smtp_username: str | None = None
