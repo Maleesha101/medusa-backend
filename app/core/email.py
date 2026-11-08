@@ -6,23 +6,44 @@ import smtplib
 import ssl
 from email.message import EmailMessage
 
+from sqlalchemy.exc import SQLAlchemyError
+
 from app.core.config import get_settings
 
 logger = logging.getLogger(__name__)
 
 
-def send_password_reset_email(email: str, reset_link: str) -> bool:
-    """Send a multipart password-reset email without logging the address or token.
+def _load_header_icon() -> tuple[bytes, str] | None:
+    """Read the shared logo without allowing branding-store errors to block recovery email."""
+    from app.db.session import SessionLocal
+    from app.models.branding_settings import BrandingSettings
 
-    Returns False when SMTP is not configured (useful for local development).
-    Production configuration validation requires SMTP_HOST and SMTP_FROM_EMAIL.
-    """
+    try:
+        with SessionLocal() as db:
+            settings = db.get(BrandingSettings, 1)
+            if settings and settings.header_icon and settings.header_icon_mime_type:
+                return settings.header_icon, settings.header_icon_mime_type
+    except SQLAlchemyError:
+        logger.warning("Shared email branding could not be loaded.")
+    return None
+
+
+def send_password_reset_email(email: str, reset_link: str) -> bool:
+    """Send a branded multipart password-reset email without logging address or token."""
     settings = get_settings()
     if not settings.smtp_host or not settings.smtp_from_email:
         logger.warning("Password-reset email delivery is unavailable: SMTP is not configured.")
         return False
 
     safe_reset_link = html.escape(reset_link, quote=True)
+    logo = _load_header_icon()
+    logo_markup = (
+        '<img src="cid:medusa-header-icon" alt="MEDUSA" '
+        'style="display:block;max-width:56px;max-height:56px;object-fit:contain;">'
+        if logo
+        else '<span style="font-size:22px;font-weight:800;letter-spacing:2px;color:#ffffff;">MEDUSA</span>'
+    )
+
     message = EmailMessage()
     message["Subject"] = "Reset your MEDUSA password"
     message["From"] = settings.smtp_from_email
@@ -42,12 +63,12 @@ def send_password_reset_email(email: str, reset_link: str) -> bool:
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Reset your MEDUSA password</title>
   </head>
-  <body style="margin:0;padding:32px 12px;background-color:#f3f5f9;font-family:Arial,Helvetica,sans-serif;color:#172033;">
+  <body style="margin:0;padding:32px 12px;background-color:#f3f5f6;font-family:Arial,Helvetica,sans-serif;color:#172033;">
     <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="max-width:560px;margin:0 auto;background:#ffffff;border-radius:16px;overflow:hidden;">
       <tr>
-        <td style="padding:28px 36px;background:#111c3a;color:#ffffff;">
-          <div style="font-size:12px;letter-spacing:3px;font-weight:700;color:#a9c5ff;">MEDUSA</div>
-          <div style="margin-top:10px;font-size:22px;font-weight:700;">Account security</div>
+        <td style="padding:28px 36px;background:#102b19;color:#ffffff;">
+          {logo_markup}
+          <div style="margin-top:12px;font-size:13px;letter-spacing:2px;font-weight:700;color:#b8f3c3;">ACCOUNT SECURITY</div>
         </td>
       </tr>
       <tr>
@@ -56,19 +77,19 @@ def send_password_reset_email(email: str, reset_link: str) -> bool:
           <p style="margin:0 0 18px;font-size:15px;line-height:1.7;color:#526078;">We received a request to reset the password for your MEDUSA account. Use the secure button below to choose a new password.</p>
           <table role="presentation" cellpadding="0" cellspacing="0" style="margin:28px 0;">
             <tr>
-              <td align="center" bgcolor="#315efb" style="border-radius:8px;">
-                <a href="{safe_reset_link}" style="display:inline-block;padding:14px 24px;color:#ffffff;text-decoration:none;font-size:15px;font-weight:700;">Reset password</a>
+              <td align="center" bgcolor="#3ecf5c" style="border-radius:8px;">
+                <a href="{safe_reset_link}" style="display:inline-block;padding:14px 24px;color:#102b19;text-decoration:none;font-size:15px;font-weight:700;">Reset password</a>
               </td>
             </tr>
           </table>
           <p style="margin:0 0 12px;font-size:13px;line-height:1.6;color:#68758b;">This link is valid for a limited time. If the button does not work, copy and paste this address into your browser:</p>
-          <p style="margin:0 0 24px;word-break:break-all;font-size:12px;line-height:1.6;"><a href="{safe_reset_link}" style="color:#315efb;">{safe_reset_link}</a></p>
+          <p style="margin:0 0 24px;word-break:break-all;font-size:12px;line-height:1.6;"><a href="{safe_reset_link}" style="color:#218c39;">{safe_reset_link}</a></p>
           <div style="height:1px;background:#e8ecf3;"></div>
           <p style="margin:20px 0 0;font-size:13px;line-height:1.6;color:#68758b;">If you did not request a password reset, you can safely ignore this email. Your password will not change.</p>
         </td>
       </tr>
       <tr>
-        <td style="padding:18px 36px;background:#f8f9fc;font-size:11px;line-height:1.5;color:#8791a3;">This is an automated security message from MEDUSA. Please do not reply to this email.</td>
+        <td style="padding:18px 36px;background:#f8faf8;font-size:11px;line-height:1.5;color:#8791a3;">This is an automated security message from MEDUSA. Please do not reply to this email.</td>
       </tr>
     </table>
   </body>
@@ -76,6 +97,18 @@ def send_password_reset_email(email: str, reset_link: str) -> bool:
 """,
         subtype="html",
     )
+    if logo:
+        image_data, mime_type = logo
+        maintype, subtype = mime_type.split("/", 1)
+        html_part = message.get_payload()[-1]
+        html_part.add_related(
+            image_data,
+            maintype=maintype,
+            subtype=subtype,
+            cid="<medusa-header-icon>",
+            disposition="inline",
+            filename=f"medusa-logo.{subtype}",
+        )
 
     try:
         with smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=10) as client:
