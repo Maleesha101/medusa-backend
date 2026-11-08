@@ -133,9 +133,7 @@ def test_password_reset_email_embeds_shared_logo_and_uses_medusa_theme(monkeypat
     assert delivered is True
     message = smtp.send_message.call_args.args[0]
     mime_parts = list(message.walk())
-    html_part = next(
-        part for part in mime_parts if part.get_content_type() == "text/html"
-    )
+    html_part = next(part for part in mime_parts if part.get_content_type() == "text/html")
     logo_part = next(
         part for part in mime_parts if part.get("Content-ID") == "<medusa-header-icon>"
     )
