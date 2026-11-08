@@ -100,6 +100,14 @@ def test_organization_team_membership_flow(client: TestClient, session_factory) 
     assert joined.status_code == 200
     assert len(joined.json()["members"]) == 2
 
+    duplicate_join = client.post(
+        "/api/v1/teams/join",
+        json={"code": rotated_code.json()["code"]},
+        headers=member_headers,
+    )
+    assert duplicate_join.status_code == 409
+    assert duplicate_join.json()["detail"] == "You are already a member of this team"
+
     with session_factory() as db:
         team_record = db.get(Team, team["id"])
         assert team_record is not None
@@ -139,13 +147,6 @@ def test_organization_team_membership_flow(client: TestClient, session_factory) 
     )
     assert locked_leave.status_code == 409
     assert "membership is locked" in locked_leave.json()["detail"]
-
-    duplicate_join = client.post(
-        "/api/v1/teams/join",
-        json={"code": rotated_code.json()["code"]},
-        headers=member_headers,
-    )
-    assert duplicate_join.status_code == 409
 
     member_id = next(
         item["user_id"] for item in joined.json()["members"] if item["role"] == "member"
