@@ -112,3 +112,32 @@ def test_password_reset_email_sends_when_smtp_is_configured(monkeypatch):
 
     assert delivered is True
     smtp.send_message.assert_called_once()
+
+
+def test_password_reset_email_embeds_shared_logo_and_uses_medusa_theme(monkeypatch):
+    smtp = MagicMock()
+    smtp.__enter__.return_value = smtp
+    monkeypatch.setattr(
+        email_service,
+        "get_settings",
+        lambda: _settings(
+            smtp_host="smtp.example.com",
+            smtp_from_email="noreply@example.test",
+        ),
+    )
+    monkeypatch.setattr(email_service, "_load_header_icon", lambda: (b"fake-png", "image/png"))
+    monkeypatch.setattr(email_service.smtplib, "SMTP", lambda *args, **kwargs: smtp)
+
+    delivered = email_service.send_password_reset_email(
+        "person@example.test", "https://frontend.example/reset-password?token=dummy"
+    )
+
+    assert delivered is True
+    message = smtp.send_message.call_args.args[0]
+    html_part = message.get_body(preferencelist=("html",))
+    assert html_part is not None
+    related = html_part.get_payload()
+    assert any(part.get("Content-ID") == "<medusa-header-icon>" for part in related)
+    html_body = related[0].get_content()
+    assert "cid:medusa-header-icon" in html_body
+    assert "#3ecf5c" in html_body
