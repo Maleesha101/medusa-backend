@@ -1,6 +1,10 @@
 """Public and administrative branding API schemas."""
 
-import base64\nimport binascii\nimport re\n\nfrom pydantic import BaseModel, Field, field_validator
+import base64
+import binascii
+import re
+
+from pydantic import BaseModel, Field, field_validator
 
 
 class HeaderIconUpdate(BaseModel):
@@ -11,12 +15,11 @@ class HeaderIconUpdate(BaseModel):
     def validate_image_data_url(cls, value: str | None) -> str | None:
         if value is None:
             return value
-        import base64
-        import binascii
 
-        import re
-
-        match = re.fullmatch(r"data:(image/(?:png|jpeg|webp));base64,([A-Za-z0-9+/]*={0,2})", value)
+        match = re.fullmatch(
+            r"data:(image/(?:png|jpeg|webp));base64,([A-Za-z0-9+/]*={0,2})",
+            value,
+        )
         if match is None:
             raise ValueError("Use a PNG, JPEG, or WebP image.")
         try:
@@ -25,6 +28,7 @@ class HeaderIconUpdate(BaseModel):
             raise ValueError("Invalid image data.") from None
         if not image or len(image) > 512 * 1024:
             raise ValueError("The image must be non-empty and no larger than 512 KB.")
+
         mime_type = match.group(1)
         valid = (
             (mime_type == "image/png" and image.startswith(b"\x89PNG\r\n\x1a\n"))
