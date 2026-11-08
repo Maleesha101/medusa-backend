@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.audit_events import router as audit_events_router
 from app.api.auth import router as auth_router
+from app.api.branding import router as branding_router
 from app.api.challenges import router as challenges_router
 from app.api.competition_registrations import router as competition_registrations_router
 from app.api.competitions import router as competitions_router
@@ -32,6 +33,7 @@ def create_app() -> FastAPI:
     )
     application.include_router(health_router, prefix=settings.api_v1_prefix)
     application.include_router(auth_router, prefix=settings.api_v1_prefix)
+    application.include_router(branding_router, prefix=settings.api_v1_prefix)
     application.include_router(audit_events_router, prefix=settings.api_v1_prefix)
     application.include_router(operations_router, prefix=settings.api_v1_prefix)
     application.include_router(organizations_router, prefix=settings.api_v1_prefix)
