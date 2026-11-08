@@ -1,6 +1,6 @@
 """Public and administrative branding API schemas."""
 
-from pydantic import BaseModel, Field, field_validator
+import base64\nimport binascii\nimport re\n\nfrom pydantic import BaseModel, Field, field_validator
 
 
 class HeaderIconUpdate(BaseModel):
