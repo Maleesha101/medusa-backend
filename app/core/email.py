@@ -55,7 +55,7 @@ def send_password_reset_email(email: str, reset_link: str) -> bool:
         "If you did not request this, you can ignore this email.\n"
     )
     message.add_alternative(
-        f"""\
+        f"""\\
 <!doctype html>
 <html lang="en">
   <head>
@@ -63,33 +63,81 @@ def send_password_reset_email(email: str, reset_link: str) -> bool:
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Reset your MEDUSA password</title>
   </head>
-  <body style="margin:0;padding:32px 12px;background-color:#f3f5f6;font-family:Arial,Helvetica,sans-serif;color:#172033;">
-    <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="max-width:560px;margin:0 auto;background:#ffffff;border-radius:16px;overflow:hidden;">
+  <body
+    style="margin:0;padding:32px 12px;background-color:#f3f5f6;
+    font-family:Arial,Helvetica,sans-serif;color:#172033;"
+  >
+    <table
+      role="presentation"
+      cellpadding="0"
+      cellspacing="0"
+      width="100%"
+      style="max-width:560px;margin:0 auto;background:#ffffff;
+      border-radius:16px;overflow:hidden;"
+    >
       <tr>
         <td style="padding:28px 36px;background:#102b19;color:#ffffff;">
           {logo_markup}
-          <div style="margin-top:12px;font-size:13px;letter-spacing:2px;font-weight:700;color:#b8f3c3;">ACCOUNT SECURITY</div>
+          <div
+            style="margin-top:12px;font-size:13px;letter-spacing:2px;
+            font-weight:700;color:#b8f3c3;"
+          >ACCOUNT SECURITY</div>
         </td>
       </tr>
       <tr>
         <td style="padding:36px;">
-          <h1 style="margin:0 0 16px;font-size:24px;line-height:1.3;color:#172033;">Reset your password</h1>
-          <p style="margin:0 0 18px;font-size:15px;line-height:1.7;color:#526078;">We received a request to reset the password for your MEDUSA account. Use the secure button below to choose a new password.</p>
-          <table role="presentation" cellpadding="0" cellspacing="0" style="margin:28px 0;">
+          <h1
+            style="margin:0 0 16px;font-size:24px;line-height:1.3;color:#172033;"
+          >Reset your password</h1>
+          <p
+            style="margin:0 0 18px;font-size:15px;line-height:1.7;color:#526078;"
+          >
+            We received a request to reset the password for your MEDUSA account.
+            Use the secure button below to choose a new password.
+          </p>
+          <table
+            role="presentation"
+            cellpadding="0"
+            cellspacing="0"
+            style="margin:28px 0;"
+          >
             <tr>
               <td align="center" bgcolor="#3ecf5c" style="border-radius:8px;">
-                <a href="{safe_reset_link}" style="display:inline-block;padding:14px 24px;color:#102b19;text-decoration:none;font-size:15px;font-weight:700;">Reset password</a>
+                <a
+                  href="{safe_reset_link}"
+                  style="display:inline-block;padding:14px 24px;color:#102b19;
+                  text-decoration:none;font-size:15px;font-weight:700;"
+                >Reset password</a>
               </td>
             </tr>
           </table>
-          <p style="margin:0 0 12px;font-size:13px;line-height:1.6;color:#68758b;">This link is valid for a limited time. If the button does not work, copy and paste this address into your browser:</p>
-          <p style="margin:0 0 24px;word-break:break-all;font-size:12px;line-height:1.6;"><a href="{safe_reset_link}" style="color:#218c39;">{safe_reset_link}</a></p>
+          <p
+            style="margin:0 0 12px;font-size:13px;line-height:1.6;color:#68758b;"
+          >
+            This link is valid for a limited time. If the button does not work,
+            copy and paste this address into your browser:
+          </p>
+          <p
+            style="margin:0 0 24px;word-break:break-all;font-size:12px;line-height:1.6;"
+          >
+            <a href="{safe_reset_link}" style="color:#218c39;">{safe_reset_link}</a>
+          </p>
           <div style="height:1px;background:#e8ecf3;"></div>
-          <p style="margin:20px 0 0;font-size:13px;line-height:1.6;color:#68758b;">If you did not request a password reset, you can safely ignore this email. Your password will not change.</p>
+          <p
+            style="margin:20px 0 0;font-size:13px;line-height:1.6;color:#68758b;"
+          >
+            If you did not request a password reset, you can safely ignore this
+            email. Your password will not change.
+          </p>
         </td>
       </tr>
       <tr>
-        <td style="padding:18px 36px;background:#f8faf8;font-size:11px;line-height:1.5;color:#8791a3;">This is an automated security message from MEDUSA. Please do not reply to this email.</td>
+        <td
+          style="padding:18px 36px;background:#f8faf8;font-size:11px;
+          line-height:1.5;color:#8791a3;"
+        >
+          This is an automated security message from MEDUSA. Please do not reply.
+        </td>
       </tr>
     </table>
   </body>
