@@ -1,6 +1,4 @@
 import smtplib
-from email import message_from_bytes
-from email.policy import default
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
@@ -65,7 +63,9 @@ def test_password_reset_email_returns_false_on_smtp_failure_without_logging_deta
     assert "mail.internal.example" not in caplog.text
 
 
-def test_password_reset_email_sends_multipart_html_with_complete_reset_link(monkeypatch):
+def test_password_reset_email_sends_multipart_html_with_complete_reset_link(
+    monkeypatch, caplog
+):
     smtp = MagicMock()
     smtp.__enter__.return_value = smtp
     monkeypatch.setattr(
@@ -87,10 +87,10 @@ def test_password_reset_email_sends_multipart_html_with_complete_reset_link(monk
     plain_part = message.get_body(preferencelist=("plain",)).get_content()
     html_part = message.get_body(preferencelist=("html",)).get_content()
     assert reset_link in plain_part
-    assert "\\\\n" not in plain_part
+    assert "\\n" not in plain_part
     assert 'href="http://localhost:8080/reset-password?token=secret-token"' in html_part
     assert "Reset password" in html_part
-    assert "secret-token" not in caplog_text()
+    assert "secret-token" not in caplog.text
 
 
 def test_password_reset_email_sends_when_smtp_is_configured(monkeypatch):
