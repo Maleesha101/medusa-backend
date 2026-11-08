@@ -66,10 +66,35 @@ def test_organization_team_membership_flow(client: TestClient, session_factory) 
     assert public_team.status_code == 200
     assert "captain@example.com" not in public_team.text
 
+    first_code = client.post(
+        f"/api/v1/teams/{team['id']}/invitation-code",
+        headers=headers,
+    )
+    assert first_code.status_code == 200
+    rotated_code = client.post(
+        f"/api/v1/teams/{team['id']}/invitation-code",
+        headers=headers,
+    )
+    assert rotated_code.status_code == 200
+    assert first_code.json()["code"] != rotated_code.json()["code"]
+
     member_token = register_and_login(client, "member@example.com")
     member_headers = {"Authorization": f"Bearer {member_token}"}
+    invalid_code = client.post(
+        "/api/v1/teams/join",
+        json={"code": "not-a-valid-invitation-code"},
+        headers=member_headers,
+    )
+    assert invalid_code.status_code == 404
+    stale_code = client.post(
+        "/api/v1/teams/join",
+        json={"code": first_code.json()["code"]},
+        headers=member_headers,
+    )
+    assert stale_code.status_code == 404
     joined = client.post(
-        f"/api/v1/teams/{team['id']}/join",
+        "/api/v1/teams/join",
+        json={"code": rotated_code.json()["code"]},
         headers=member_headers,
     )
     assert joined.status_code == 200
@@ -99,10 +124,12 @@ def test_organization_team_membership_flow(client: TestClient, session_factory) 
         competition_id = competition.id
 
     extra_token = register_and_login(client, "extra-member@example.com")
-    locked_join = client.post(
-        f"/api/v1/teams/{team['id']}/join",
+    locked_code = client.post(
+        "/api/v1/teams/join",
+        json={"code": rotated_code.json()["code"]},
         headers={"Authorization": f"Bearer {extra_token}"},
     )
+    locked_join = locked_code
     assert locked_join.status_code == 409
     assert "membership is locked" in locked_join.json()["detail"]
 
@@ -156,11 +183,17 @@ def test_organization_team_membership_flow(client: TestClient, session_factory) 
         member_id: "captain",
     }
 
-    locked_former_captain_leave = client.delete(
-        f"/api/v1/teams/{team['id']}/leave",
+    denied_member_removal = client.delete(
+        f"/api/v1/teams/{team['id']}/members/{team['captain_user_id']}",
         headers=headers,
     )
-    assert locked_former_captain_leave.status_code == 409
+    assert denied_member_removal.status_code == 403
+
+    locked_member_removal = client.delete(
+        f"/api/v1/teams/{team['id']}/members/{team['captain_user_id']}",
+        headers=member_headers,
+    )
+    assert locked_member_removal.status_code == 409
 
     with session_factory() as db:
         registration = db.scalar(
@@ -173,14 +206,26 @@ def test_organization_team_membership_flow(client: TestClient, session_factory) 
         db.delete(registration)
         db.commit()
 
-    left = client.delete(
-        f"/api/v1/teams/{team['id']}/leave",
-        headers=headers,
+    captain_self_remove = client.delete(
+        f"/api/v1/teams/{team['id']}/members/{member_id}",
+        headers=member_headers,
     )
-    assert left.status_code == 204
+    assert captain_self_remove.status_code == 409
+
+    removed = client.delete(
+        f"/api/v1/teams/{team['id']}/members/{team['captain_user_id']}",
+        headers=member_headers,
+    )
+    assert removed.status_code == 204
     remaining_team = client.get(f"/api/v1/teams/{team['id']}").json()
     assert len(remaining_team["members"]) == 1
     assert remaining_team["captain_user_id"] == member_id
+
+    former_captain_leave = client.delete(
+        f"/api/v1/teams/{team['id']}/leave",
+        headers=headers,
+    )
+    assert former_captain_leave.status_code == 404
 
     captain_leave = client.delete(
         f"/api/v1/teams/{team['id']}/leave",
