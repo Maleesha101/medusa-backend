@@ -141,7 +141,8 @@ def test_organization_team_membership_flow(client: TestClient, session_factory) 
     assert "membership is locked" in locked_leave.json()["detail"]
 
     duplicate_join = client.post(
-        f"/api/v1/teams/{team['id']}/join",
+        "/api/v1/teams/join",
+        json={"code": rotated_code.json()["code"]},
         headers=member_headers,
     )
     assert duplicate_join.status_code == 409
