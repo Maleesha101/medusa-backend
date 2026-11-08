@@ -21,6 +21,8 @@ All public HTTP endpoints live under /api/v1. Breaking changes require a version
 | POST | /api/v1/auth/logout | Revoke the presented access token | Bearer token; returns 204 on success |
 | POST | /api/v1/auth/password-reset/request | Request password-reset instructions | Public; generic 202 response; Redis limits per IP and normalized email |
 | POST | /api/v1/auth/password-reset/confirm | Consume reset token and set a new password | Public; rate-limited; returns 204 on success |
+| GET | /api/v1/branding/header-icon | Read the shared header icon for app headers and email | Public; returns null when unset |
+| PUT | /api/v1/branding/header-icon | Set or clear the shared header icon | Platform admin; PNG/JPEG/WebP up to 512 KB |
 | GET | /api/v1/live | Process liveness | Public |
 | GET | /api/v1/ready | Database readiness | Public |
 
