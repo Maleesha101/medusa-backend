@@ -63,9 +63,7 @@ def test_password_reset_email_returns_false_on_smtp_failure_without_logging_deta
     assert "mail.internal.example" not in caplog.text
 
 
-def test_password_reset_email_sends_multipart_html_with_complete_reset_link(
-    monkeypatch, caplog
-):
+def test_password_reset_email_sends_multipart_html_with_complete_reset_link(monkeypatch, caplog):
     smtp = MagicMock()
     smtp.__enter__.return_value = smtp
     monkeypatch.setattr(
