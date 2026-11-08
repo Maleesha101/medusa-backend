@@ -1,0 +1,25 @@
+@baseUrl = http://localhost:8000/api/v1
+@adminToken = replace-with-platform-admin-access-token
+
+### Read the shared header icon
+GET {{baseUrl}}/branding/header-icon
+Accept: application/json
+
+### Set or replace the shared header icon
+# image_data_url must be a validated PNG, JPEG, or WebP data URL (max 512 KB decoded).
+PUT {{baseUrl}}/branding/header-icon
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "image_data_url": "data:image/png;base64,REPLACE_WITH_BASE64_IMAGE"
+}
+
+### Restore the default MEDUSA icon
+PUT {{baseUrl}}/branding/header-icon
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "image_data_url": null
+}
