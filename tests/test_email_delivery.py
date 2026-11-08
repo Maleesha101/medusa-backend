@@ -132,10 +132,17 @@ def test_password_reset_email_embeds_shared_logo_and_uses_medusa_theme(monkeypat
 
     assert delivered is True
     message = smtp.send_message.call_args.args[0]
-    html_part = message.get_body(preferencelist=("html",))
-    assert html_part is not None
-    related = html_part.get_payload()
-    assert any(part.get("Content-ID") == "<medusa-header-icon>" for part in related)
-    html_body = related[0].get_content()
+    mime_parts = list(message.walk())
+    html_part = next(
+        part for part in mime_parts if part.get_content_type() == "text/html"
+    )
+    logo_part = next(
+        part for part in mime_parts if part.get("Content-ID") == "<medusa-header-icon>"
+    )
+
+    assert logo_part.get_content_type() == "image/png"
+    assert logo_part.get_content_disposition() == "inline"
+    assert logo_part.get_payload(decode=True) == b"fake-png"
+    html_body = html_part.get_content()
     assert "cid:medusa-header-icon" in html_body
     assert "#3ecf5c" in html_body
