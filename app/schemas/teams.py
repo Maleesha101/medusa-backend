@@ -31,3 +31,11 @@ class TeamPublic(BaseModel):
 
 class TeamDetail(TeamPublic):
     members: list[MemberPublic]
+
+
+class InvitationCodeJoin(BaseModel):
+    code: str = Field(min_length=1, max_length=128)
+
+
+class InvitationCodeResponse(BaseModel):
+    code: str
