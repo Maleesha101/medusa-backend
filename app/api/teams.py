@@ -275,7 +275,9 @@ def remove_team_member(
     if _has_live_competition_registration(db, team_id):
         raise HTTPException(
             status_code=409,
-            detail="Team membership is locked while registered for a published or active competition",
+            detail=(
+                "Team membership is locked while registered for a published or active competition"
+            ),
         )
     membership = db.scalar(
         select(Membership).where(
