@@ -148,7 +148,10 @@ def create_team_invitation_code(
     if team is None:
         raise HTTPException(status_code=404, detail="Team not found")
     if team.captain_user_id != user.id:
-        raise HTTPException(status_code=403, detail="Only the team captain can manage invitation codes")
+        raise HTTPException(
+            status_code=403,
+            detail="Only the team captain can manage invitation codes",
+        )
 
     code = secrets.token_urlsafe(18)
     code_hash = hashlib.sha256(code.encode("utf-8")).hexdigest()
@@ -184,7 +187,9 @@ def join_team_with_invitation_code(
     if _has_live_competition_registration(db, team.id):
         raise HTTPException(
             status_code=409,
-            detail="Team membership is locked while registered for a published or active competition",
+            detail=(
+                "Team membership is locked while registered for a published or active competition"
+            ),
         )
     existing = db.scalar(
         select(Membership).where(
@@ -199,7 +204,10 @@ def join_team_with_invitation_code(
         db.commit()
     except IntegrityError:
         db.rollback()
-        raise HTTPException(status_code=409, detail="You are already a member of this team") from None
+        raise HTTPException(
+            status_code=409,
+            detail="You are already a member of this team",
+        ) from None
     return _team_detail(db, team)
 
 
@@ -278,7 +286,10 @@ def remove_team_member(
     if membership is None:
         raise HTTPException(status_code=404, detail="Team member not found")
     if membership.role == "captain":
-        raise HTTPException(status_code=409, detail="Captaincy must be transferred before removing this member")
+        raise HTTPException(
+            status_code=409,
+            detail="Captaincy must be transferred before removing this member",
+        )
     db.delete(membership)
     db.commit()
 
