@@ -175,9 +175,7 @@ def join_team_with_invitation_code(
 ) -> TeamDetail:
     """Join a team using its current invitation code."""
     code_hash = hashlib.sha256(payload.code.strip().encode("utf-8")).hexdigest()
-    invitation = db.scalar(
-        select(TeamInvitation).where(TeamInvitation.code_hash == code_hash)
-    )
+    invitation = db.scalar(select(TeamInvitation).where(TeamInvitation.code_hash == code_hash))
     if invitation is None:
         raise HTTPException(status_code=404, detail="Invalid team invitation code")
     team = db.scalar(select(Team).where(Team.id == invitation.team_id).with_for_update())
