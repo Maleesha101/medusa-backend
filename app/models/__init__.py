@@ -15,6 +15,7 @@ from app.models.organization import Organization
 from app.models.password_reset_token import PasswordResetToken
 from app.models.sandbox_instance import SandboxInstance
 from app.models.team import Team
+from app.models.team_invitation import TeamInvitation
 from app.models.user import User
 
 __all__ = [
@@ -34,5 +35,6 @@ __all__ = [
     "PasswordResetToken",
     "SandboxInstance",
     "Team",
+    "TeamInvitation",
     "User",
 ]

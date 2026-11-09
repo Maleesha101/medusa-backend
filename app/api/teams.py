@@ -1,5 +1,8 @@
 """Team and membership endpoints."""
 
+import hashlib
+import secrets
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
@@ -12,8 +15,17 @@ from app.models.competition_registration import CompetitionRegistration
 from app.models.membership import Membership
 from app.models.organization import Organization
 from app.models.team import Team
+from app.models.team_invitation import TeamInvitation
 from app.models.user import User
-from app.schemas.teams import CaptainTransfer, MemberPublic, TeamCreate, TeamDetail, TeamPublic
+from app.schemas.teams import (
+    CaptainTransfer,
+    InvitationCodeJoin,
+    InvitationCodeResponse,
+    MemberPublic,
+    TeamCreate,
+    TeamDetail,
+    TeamPublic,
+)
 
 router = APIRouter(tags=["teams"])
 
@@ -122,18 +134,55 @@ def get_team(team_id: int, db: Session = Depends(get_db)) -> TeamDetail:
     return _team_detail(db, team)
 
 
-@router.post("/teams/{team_id}/join", response_model=TeamDetail)
-def join_team(
+@router.post(
+    "/teams/{team_id}/invitation-code",
+    response_model=InvitationCodeResponse,
+)
+def create_team_invitation_code(
     team_id: int,
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
-) -> TeamDetail:
-    """Join a team as the authenticated user."""
-    team = db.get(Team, team_id)
+) -> InvitationCodeResponse:
+    """Create or rotate a team's invitation code; return the raw code only once."""
+    team = db.scalar(select(Team).where(Team.id == team_id).with_for_update())
     if team is None:
         raise HTTPException(status_code=404, detail="Team not found")
+    if team.captain_user_id != user.id:
+        raise HTTPException(
+            status_code=403,
+            detail="Only the team captain can manage invitation codes",
+        )
+
+    code = secrets.token_urlsafe(18)
+    code_hash = hashlib.sha256(code.encode("utf-8")).hexdigest()
+    invitation = db.scalar(
+        select(TeamInvitation).where(TeamInvitation.team_id == team_id).with_for_update()
+    )
+    if invitation is None:
+        invitation = TeamInvitation(team_id=team_id, code_hash=code_hash)
+        db.add(invitation)
+    else:
+        invitation.code_hash = code_hash
+    db.commit()
+    return InvitationCodeResponse(code=code)
+
+
+@router.post("/teams/join", response_model=TeamDetail)
+def join_team_with_invitation_code(
+    payload: InvitationCodeJoin,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> TeamDetail:
+    """Join a team using its current invitation code."""
+    code_hash = hashlib.sha256(payload.code.strip().encode("utf-8")).hexdigest()
+    invitation = db.scalar(select(TeamInvitation).where(TeamInvitation.code_hash == code_hash))
+    if invitation is None:
+        raise HTTPException(status_code=404, detail="Invalid team invitation code")
+    team = db.scalar(select(Team).where(Team.id == invitation.team_id).with_for_update())
+    if team is None:
+        raise HTTPException(status_code=404, detail="Invalid team invitation code")
     _active_organization(db, team.organization_id)
-    if _has_live_competition_registration(db, team_id):
+    if _has_live_competition_registration(db, team.id):
         raise HTTPException(
             status_code=409,
             detail=(
@@ -142,13 +191,13 @@ def join_team(
         )
     existing = db.scalar(
         select(Membership).where(
-            Membership.team_id == team_id,
+            Membership.team_id == team.id,
             Membership.user_id == user.id,
         )
     )
     if existing is not None:
         raise HTTPException(status_code=409, detail="You are already a member of this team")
-    db.add(Membership(team_id=team_id, user_id=user.id, role="member"))
+    db.add(Membership(team_id=team.id, user_id=user.id, role="member"))
     try:
         db.commit()
     except IntegrityError:
@@ -204,6 +253,45 @@ def transfer_captaincy(
     db.commit()
     db.refresh(team)
     return _team_detail(db, team)
+
+
+@router.delete("/teams/{team_id}/members/{member_user_id}", status_code=status.HTTP_204_NO_CONTENT)
+def remove_team_member(
+    team_id: int,
+    member_user_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> None:
+    """Allow only the captain to remove a non-captain team member."""
+    team = db.scalar(select(Team).where(Team.id == team_id).with_for_update())
+    if team is None:
+        raise HTTPException(status_code=404, detail="Team not found")
+    if team.captain_user_id != user.id:
+        raise HTTPException(status_code=403, detail="Only the team captain can remove members")
+    if member_user_id == user.id:
+        raise HTTPException(status_code=409, detail="The captain cannot remove themselves")
+    if _has_live_competition_registration(db, team_id):
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "Team membership is locked while registered for a published or active competition"
+            ),
+        )
+    membership = db.scalar(
+        select(Membership).where(
+            Membership.team_id == team_id,
+            Membership.user_id == member_user_id,
+        )
+    )
+    if membership is None:
+        raise HTTPException(status_code=404, detail="Team member not found")
+    if membership.role == "captain":
+        raise HTTPException(
+            status_code=409,
+            detail="Captaincy must be transferred before removing this member",
+        )
+    db.delete(membership)
+    db.commit()
 
 
 @router.delete("/teams/{team_id}/leave", status_code=status.HTTP_204_NO_CONTENT)
