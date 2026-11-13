@@ -232,7 +232,7 @@ def test_organizer_can_list_all_challenge_states_and_other_org_is_forbidden(
     assert created.status_code == 201
     challenge_id = created.json()["id"]
 
-    public_rows = client.get(f"/api/v1/rounds/{round_id}/challenges")
+    public_rows = client.get(f"/api/v1/rounds/{round_id}/challenges", headers=headers)
     assert public_rows.status_code == 200
     assert public_rows.json() == []
 
