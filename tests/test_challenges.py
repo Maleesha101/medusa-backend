@@ -95,7 +95,8 @@ def test_challenge_lifecycle_and_public_catalog(client: TestClient, session_fact
     hidden_detail = client.get(f"/api/v1/challenges/{challenge_id}")
     assert hidden_detail.status_code == 401
     hidden_list = client.get(f"/api/v1/rounds/{round_id}/challenges", headers=headers)
-    assert hidden_list.status_code == 403
+    assert hidden_list.status_code == 200
+    assert hidden_list.json() == []
 
     configured = client.put(
         f"/api/v1/challenges/{challenge_id}/flag",

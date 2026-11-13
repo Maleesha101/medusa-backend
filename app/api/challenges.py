@@ -70,11 +70,10 @@ def _public_parent_or_404(db: Session, round_id: int, user: User) -> Competition
         )
         .limit(1)
     )
-    if registration is None:
-        raise HTTPException(
-            status_code=403,
-            detail="Register a team for this competition to access its challenges",
-        )
+    if registration is not None:
+        return round_item
+    # Organizers who own the competition's organization may access its public catalog.
+    require_organization_access(db, user, competition.organization_id)
     return round_item
 
 
