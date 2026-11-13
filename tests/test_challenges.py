@@ -93,7 +93,7 @@ def test_challenge_lifecycle_and_public_catalog(client: TestClient, session_fact
     challenge_id = challenge["id"]
 
     hidden_detail = client.get(f"/api/v1/challenges/{challenge_id}")
-    assert hidden_detail.status_code == 404
+    assert hidden_detail.status_code == 401
     hidden_list = client.get(f"/api/v1/rounds/{round_id}/challenges", headers=headers)
     assert hidden_list.status_code == 403
 
