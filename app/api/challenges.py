@@ -5,11 +5,13 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.api.dependencies import require_organization_access, require_roles
+from app.api.dependencies import get_current_user, require_organization_access, require_roles
 from app.db.session import get_db
 from app.models.challenge import Challenge
 from app.models.challenge_flag import ChallengeFlag
 from app.models.competition import Competition
+from app.models.competition_registration import CompetitionRegistration
+from app.models.membership import Membership
 from app.models.competition_round import CompetitionRound
 from app.models.user import User
 from app.schemas.challenges import (
@@ -48,7 +50,7 @@ def _authorize_challenge_access(db: Session, user: User, challenge: Challenge) -
     require_organization_access(db, user, competition.organization_id)
 
 
-def _public_parent_or_404(db: Session, round_id: int) -> CompetitionRound:
+def _public_parent_or_404(db: Session, round_id: int, user: User) -> CompetitionRound:
     round_item = db.get(CompetitionRound, round_id)
     if round_item is None:
         raise HTTPException(status_code=404, detail="Round not found")
@@ -89,7 +91,7 @@ def get_published_challenge(
     challenge = _challenge_or_404(db, challenge_id)
     if challenge.status != "published":
         raise HTTPException(status_code=404, detail="Challenge not found")
-    _public_parent_or_404(db, challenge.round_id)
+    _public_parent_or_404(db, challenge.round_id, user)
     return challenge
 
 
