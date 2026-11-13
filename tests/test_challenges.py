@@ -184,3 +184,48 @@ def test_duplicate_challenge_slug_and_invalid_points(client: TestClient, session
         headers=headers,
     )
     assert invalid.status_code == 422
+
+
+def test_organizer_can_list_all_challenge_states_and_other_org_is_forbidden(
+    client: TestClient, session_factory
+) -> None:
+    token, organization_id = prepare_organizer(
+        client, session_factory, "challenge-manager@example.com"
+    )
+    headers = {"Authorization": f"Bearer {token}"}
+    round_id = create_public_round(client, token, organization_id)
+    payload = {
+        "name": "Organizer Draft",
+        "slug": "organizer-draft",
+        "description": "A private draft challenge.",
+        "category": "Web",
+        "points": 100,
+    }
+    created = client.post(
+        f"/api/v1/rounds/{round_id}/challenges",
+        json=payload,
+        headers=headers,
+    )
+    assert created.status_code == 201
+    challenge_id = created.json()["id"]
+
+    public_rows = client.get(f"/api/v1/rounds/{round_id}/challenges")
+    assert public_rows.status_code == 200
+    assert public_rows.json() == []
+
+    managed = client.get(
+        f"/api/v1/rounds/{round_id}/challenges/manage",
+        headers=headers,
+    )
+    assert managed.status_code == 200
+    assert [row["id"] for row in managed.json()] == [challenge_id]
+    assert managed.json()[0]["status"] == "draft"
+
+    outsider_token, _ = prepare_organizer(
+        client, session_factory, "challenge-outsider@example.com"
+    )
+    forbidden = client.get(
+        f"/api/v1/rounds/{round_id}/challenges/manage",
+        headers={"Authorization": f"Bearer {outsider_token}"},
+    )
+    assert forbidden.status_code == 403
