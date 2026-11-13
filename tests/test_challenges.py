@@ -94,9 +94,7 @@ def test_challenge_lifecycle_and_public_catalog(client: TestClient, session_fact
 
     hidden_detail = client.get(f"/api/v1/challenges/{challenge_id}")
     assert hidden_detail.status_code == 404
-    hidden_list = client.get(
-        f"/api/v1/rounds/{round_id}/challenges", headers=headers
-    )
+    hidden_list = client.get(f"/api/v1/rounds/{round_id}/challenges", headers=headers)
     assert hidden_list.status_code == 403
 
     configured = client.put(
@@ -114,9 +112,7 @@ def test_challenge_lifecycle_and_public_catalog(client: TestClient, session_fact
     assert published.status_code == 200
     assert published.json()["status"] == "published"
 
-    participant_token = register_and_login(
-        client, "challenge-lifecycle-participant@example.com"
-    )
+    participant_token = register_and_login(client, "challenge-lifecycle-participant@example.com")
     participant_headers = {"Authorization": f"Bearer {participant_token}"}
     team = client.post(
         f"/api/v1/organizations/{organization_id}/teams",
@@ -137,16 +133,12 @@ def test_challenge_lifecycle_and_public_catalog(client: TestClient, session_fact
     )
     assert registration.status_code == 201
 
-    public_detail = client.get(
-        f"/api/v1/challenges/{challenge_id}", headers=participant_headers
-    )
+    public_detail = client.get(f"/api/v1/challenges/{challenge_id}", headers=participant_headers)
     assert public_detail.status_code == 200
     assert public_detail.json()["slug"] == "lost-packet"
     assert "flag" not in public_detail.json()
     assert "flag_hash" not in public_detail.json()
-    public_list = client.get(
-        f"/api/v1/rounds/{round_id}/challenges", headers=participant_headers
-    )
+    public_list = client.get(f"/api/v1/rounds/{round_id}/challenges", headers=participant_headers)
     assert [item["id"] for item in public_list.json()] == [challenge_id]
 
     updated = client.patch(
@@ -163,9 +155,10 @@ def test_challenge_lifecycle_and_public_catalog(client: TestClient, session_fact
         headers=headers,
     )
     assert archived.status_code == 200
-    assert client.get(
-        f"/api/v1/challenges/{challenge_id}", headers=participant_headers
-    ).status_code == 404
+    assert (
+        client.get(f"/api/v1/challenges/{challenge_id}", headers=participant_headers).status_code
+        == 404
+    )
 
 
 def test_participant_cannot_author_challenge(client: TestClient, session_factory) -> None:
@@ -216,7 +209,6 @@ def test_duplicate_challenge_slug_and_invalid_points(client: TestClient, session
     assert invalid.status_code == 422
 
 
-
 def test_participant_challenges_require_competition_team_registration(
     client: TestClient, session_factory
 ) -> None:
@@ -251,17 +243,17 @@ def test_participant_challenges_require_competition_team_registration(
     )
     assert published.status_code == 200
 
-    participant_token = register_and_login(
-        client, "registered-challenge-participant@example.com"
-    )
+    participant_token = register_and_login(client, "registered-challenge-participant@example.com")
     participant_headers = {"Authorization": f"Bearer {participant_token}"}
     assert client.get(f"/api/v1/rounds/{round_id}/challenges").status_code == 401
-    assert client.get(
-        f"/api/v1/rounds/{round_id}/challenges", headers=participant_headers
-    ).status_code == 403
-    assert client.get(
-        f"/api/v1/challenges/{challenge_id}", headers=participant_headers
-    ).status_code == 403
+    assert (
+        client.get(f"/api/v1/rounds/{round_id}/challenges", headers=participant_headers).status_code
+        == 403
+    )
+    assert (
+        client.get(f"/api/v1/challenges/{challenge_id}", headers=participant_headers).status_code
+        == 403
+    )
 
     team = client.post(
         f"/api/v1/organizations/{organization_id}/teams",
@@ -281,12 +273,8 @@ def test_participant_challenges_require_competition_team_registration(
         headers=participant_headers,
     )
     assert registration.status_code == 201
-    listed = client.get(
-        f"/api/v1/rounds/{round_id}/challenges", headers=participant_headers
-    )
+    listed = client.get(f"/api/v1/rounds/{round_id}/challenges", headers=participant_headers)
     assert listed.status_code == 200
     assert [item["id"] for item in listed.json()] == [challenge_id]
-    detail = client.get(
-        f"/api/v1/challenges/{challenge_id}", headers=participant_headers
-    )
+    detail = client.get(f"/api/v1/challenges/{challenge_id}", headers=participant_headers)
     assert detail.status_code == 200
