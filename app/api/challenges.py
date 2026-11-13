@@ -61,6 +61,10 @@ def _public_parent_or_404(db: Session, round_id: int, user: User) -> Competition
         or competition.status not in PUBLIC_COMPETITION_STATUSES
     ):
         raise HTTPException(status_code=404, detail="Round not found")
+    if user.role in {"organizer", "admin"}:
+        require_organization_access(db, user, competition.organization_id)
+        return round_item
+
     registration = db.scalar(
         select(CompetitionRegistration.id)
         .join(Membership, Membership.team_id == CompetitionRegistration.team_id)
