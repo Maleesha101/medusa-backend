@@ -221,9 +221,14 @@ def test_organizer_can_list_all_challenge_states_and_other_org_is_forbidden(
     assert [row["id"] for row in managed.json()] == [challenge_id]
     assert managed.json()[0]["status"] == "draft"
 
-    outsider_token, _ = prepare_organizer(
-        client, session_factory, "challenge-outsider@example.com"
-    )
+    outsider_token = register_and_login(client, "challenge-outsider@example.com")
+    with session_factory() as db:
+        outsider = db.scalar(
+            select(User).where(User.email == "challenge-outsider@example.com")
+        )
+        assert outsider is not None
+        outsider.role = "organizer"
+        db.commit()
     forbidden = client.get(
         f"/api/v1/rounds/{round_id}/challenges/manage",
         headers={"Authorization": f"Bearer {outsider_token}"},
