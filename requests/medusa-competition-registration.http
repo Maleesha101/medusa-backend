@@ -5,7 +5,7 @@
 @baseUrl = http://localhost:8000/api/v1
 @memberEmail = participant@example.com
 @organizerEmail = organizer@example.com
-@password = replace-with-account-password
+@password = Replace-With-A-Long-Local-Test-Password
 @competitionId = 1
 @teamId = 1
 
