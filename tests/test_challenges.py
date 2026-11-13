@@ -239,8 +239,6 @@ def test_participant_challenges_require_competition_team_registration(
         headers=participant_headers,
     )
     assert team.status_code == 201
-    competition_id = team.json()["organization_id"]
-    del competition_id
     with session_factory() as db:
         from app.models.competition_round import CompetitionRound
 
