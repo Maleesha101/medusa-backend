@@ -102,8 +102,14 @@ def test_member_can_leave_only_their_own_membership(
     assert created.status_code == 201
     team_id = created.json()["id"]
 
+    invitation = client.post(
+        f"/api/v1/teams/{team_id}/invitation-code",
+        headers={"Authorization": f"Bearer {captain_token}"},
+    )
+    assert invitation.status_code == 200
     joined = client.post(
-        f"/api/v1/teams/{team_id}/join",
+        "/api/v1/teams/join",
+        json={"code": invitation.json()["code"]},
         headers={"Authorization": f"Bearer {member_token}"},
     )
     assert joined.status_code == 200
