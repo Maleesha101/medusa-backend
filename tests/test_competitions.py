@@ -90,6 +90,17 @@ def test_competition_round_lifecycle(client: TestClient, session_factory) -> Non
     assert round_response.status_code == 201
     assert round_response.json()["position"] == 1
 
+    managed_draft_rounds = client.get(
+        f"/api/v1/competitions/{competition_id}/rounds/manage",
+        headers=headers,
+    )
+    assert managed_draft_rounds.status_code == 200
+    assert [item["id"] for item in managed_draft_rounds.json()] == [
+        round_response.json()["id"]
+    ]
+    public_draft_rounds = client.get(f"/api/v1/competitions/{competition_id}/rounds")
+    assert public_draft_rounds.status_code == 404
+
     duplicate_position = client.post(
         f"/api/v1/competitions/{competition_id}/rounds",
         json={"name": "Forensics", "slug": "forensics", "position": 1},
