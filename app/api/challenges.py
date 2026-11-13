@@ -11,8 +11,8 @@ from app.models.challenge import Challenge
 from app.models.challenge_flag import ChallengeFlag
 from app.models.competition import Competition
 from app.models.competition_registration import CompetitionRegistration
-from app.models.membership import Membership
 from app.models.competition_round import CompetitionRound
+from app.models.membership import Membership
 from app.models.user import User
 from app.schemas.challenges import (
     ChallengeCreate,
@@ -61,6 +61,20 @@ def _public_parent_or_404(db: Session, round_id: int, user: User) -> Competition
         or competition.status not in PUBLIC_COMPETITION_STATUSES
     ):
         raise HTTPException(status_code=404, detail="Round not found")
+    registration = db.scalar(
+        select(CompetitionRegistration.id)
+        .join(Membership, Membership.team_id == CompetitionRegistration.team_id)
+        .where(
+            CompetitionRegistration.competition_id == competition.id,
+            Membership.user_id == user.id,
+        )
+        .limit(1)
+    )
+    if registration is None:
+        raise HTTPException(
+            status_code=403,
+            detail="Register a team for this competition to access its challenges",
+        )
     return round_item
 
 
@@ -71,9 +85,10 @@ def _public_parent_or_404(db: Session, round_id: int, user: User) -> Competition
 def list_published_challenges(
     round_id: int,
     db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
 ) -> list[Challenge]:
-    """List published challenges only when the parent competition is public."""
-    _public_parent_or_404(db, round_id)
+    """List published challenges only for members of a registered team."""
+    _public_parent_or_404(db, round_id, user)
     query = (
         select(Challenge)
         .where(Challenge.round_id == round_id, Challenge.status == "published")
@@ -86,8 +101,9 @@ def list_published_challenges(
 def get_published_challenge(
     challenge_id: int,
     db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
 ) -> Challenge:
-    """Get a published challenge without exposing drafts or archived content."""
+    """Get a published challenge only for members of a registered team."""
     challenge = _challenge_or_404(db, challenge_id)
     if challenge.status != "published":
         raise HTTPException(status_code=404, detail="Challenge not found")
