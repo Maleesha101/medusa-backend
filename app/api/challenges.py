@@ -61,6 +61,10 @@ def _public_parent_or_404(db: Session, round_id: int, user: User) -> Competition
         or competition.status not in PUBLIC_COMPETITION_STATUSES
     ):
         raise HTTPException(status_code=404, detail="Round not found")
+    if user.role in {"organizer", "admin"}:
+        require_organization_access(db, user, competition.organization_id)
+        return round_item
+
     registration = db.scalar(
         select(CompetitionRegistration.id)
         .join(Membership, Membership.team_id == CompetitionRegistration.team_id)
@@ -89,11 +93,10 @@ def list_published_challenges(
 ) -> list[Challenge]:
     """List published challenges only for members of a registered team."""
     _public_parent_or_404(db, round_id, user)
-    query = (
-        select(Challenge)
-        .where(Challenge.round_id == round_id, Challenge.status == "published")
-        .order_by(Challenge.points, Challenge.name)
-    )
+    query = select(Challenge).where(Challenge.round_id == round_id)
+    if user.role not in {"organizer", "admin"}:
+        query = query.where(Challenge.status == "published")
+    query = query.order_by(Challenge.points, Challenge.name)
     return list(db.scalars(query).all())
 
 
