@@ -74,14 +74,6 @@ def test_competition_round_lifecycle(client: TestClient, session_factory) -> Non
     assert hidden_from_public_list.status_code == 200
     assert all(item["id"] != competition_id for item in hidden_from_public_list.json())
 
-    published = client.patch(
-        f"/api/v1/competitions/{competition_id}/status",
-        json={"status": "published"},
-        headers=headers,
-    )
-    assert published.status_code == 200
-    assert published.json()["status"] == "published"
-
     round_response = client.post(
         f"/api/v1/competitions/{competition_id}/rounds",
         json={"name": "Web Recon", "slug": "web-recon", "position": 1},
@@ -98,6 +90,14 @@ def test_competition_round_lifecycle(client: TestClient, session_factory) -> Non
     assert [item["id"] for item in managed_draft_rounds.json()] == [round_response.json()["id"]]
     public_draft_rounds = client.get(f"/api/v1/competitions/{competition_id}/rounds")
     assert public_draft_rounds.status_code == 404
+
+    published = client.patch(
+        f"/api/v1/competitions/{competition_id}/status",
+        json={"status": "published"},
+        headers=headers,
+    )
+    assert published.status_code == 200
+    assert published.json()["status"] == "published"
 
     duplicate_position = client.post(
         f"/api/v1/competitions/{competition_id}/rounds",
