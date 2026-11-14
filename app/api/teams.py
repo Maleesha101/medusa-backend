@@ -17,7 +17,6 @@ from app.models.organization import Organization
 from app.models.team import Team
 from app.models.team_invitation import TeamInvitation
 from app.models.user import User
-from app.services.audit import record_audit_event
 from app.schemas.teams import (
     CaptainTransfer,
     InvitationCodeJoin,
@@ -27,6 +26,7 @@ from app.schemas.teams import (
     TeamDetail,
     TeamPublic,
 )
+from app.services.audit import record_audit_event
 
 router = APIRouter(tags=["teams"])
 
