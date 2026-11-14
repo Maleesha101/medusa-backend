@@ -148,3 +148,22 @@ def test_password_reset_requires_valid_payloads(client):
     invalid_email = _request_reset(client, "not-an-email")
     assert short_password.status_code == 422
     assert invalid_email.status_code == 422
+
+
+def test_reset_request_keeps_generic_response_when_email_delivery_fails(client, monkeypatch):
+    _register_and_login(client)
+    monkeypatch.setattr(
+        auth_api,
+        "send_password_reset_email",
+        lambda email, link: False,
+    )
+
+    failed_delivery = _request_reset(client)
+    unknown_account = _request_reset(client, "absent@example.com")
+
+    assert failed_delivery.status_code == unknown_account.status_code == 202
+    assert failed_delivery.json() == unknown_account.json()
+    response_text = failed_delivery.text
+    assert "recover@example.com" not in response_text
+    assert "absent@example.com" not in response_text
+    assert "token=" not in response_text
