@@ -167,4 +167,3 @@ def test_reset_request_keeps_generic_response_when_email_delivery_fails(client, 
     assert "recover@example.com" not in response_text
     assert "absent@example.com" not in response_text
     assert "token=" not in response_text
-
