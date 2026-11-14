@@ -149,9 +149,7 @@ def test_password_reset_requires_valid_payloads(client):
     assert short_password.status_code == 422
     assert invalid_email.status_code == 422
 
-def test_reset_request_keeps_generic_response_when_email_delivery_fails(
-    client, monkeypatch
-):
+def test_reset_request_keeps_generic_response_when_email_delivery_fails(client, monkeypatch):
     _register_and_login(client)
     monkeypatch.setattr(
         auth_api,
