@@ -162,6 +162,26 @@ def list_rounds(
     return list(db.scalars(query).all())
 
 
+@router.get(
+    "/{competition_id}/rounds/manage",
+    response_model=list[RoundPublic],
+)
+def list_manageable_rounds(
+    competition_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_roles("organizer", "admin")),
+) -> list[CompetitionRound]:
+    """List rounds, including for draft competitions, after organization authorization."""
+    competition = _competition_or_404(db, competition_id)
+    require_organization_access(db, user, competition.organization_id)
+    query = (
+        select(CompetitionRound)
+        .where(CompetitionRound.competition_id == competition_id)
+        .order_by(CompetitionRound.position)
+    )
+    return list(db.scalars(query).all())
+
+
 @router.post(
     "/{competition_id}/rounds",
     response_model=RoundPublic,

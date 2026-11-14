@@ -70,11 +70,10 @@ def _public_parent_or_404(db: Session, round_id: int, user: User) -> Competition
         )
         .limit(1)
     )
-    if registration is None:
-        raise HTTPException(
-            status_code=403,
-            detail="Register a team for this competition to access its challenges",
-        )
+    if registration is not None:
+        return round_item
+    # Organizers who own the competition's organization may access its public catalog.
+    require_organization_access(db, user, competition.organization_id)
     return round_item
 
 
@@ -92,6 +91,31 @@ def list_published_challenges(
     query = (
         select(Challenge)
         .where(Challenge.round_id == round_id, Challenge.status == "published")
+        .order_by(Challenge.points, Challenge.name)
+    )
+    return list(db.scalars(query).all())
+
+
+@router.get(
+    "/rounds/{round_id}/challenges/manage",
+    response_model=list[ChallengePublic],
+)
+def list_manageable_challenges(
+    round_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_roles("organizer", "admin")),
+) -> list[Challenge]:
+    """List all challenge states for an organizer who owns the round's organization."""
+    round_item = db.get(CompetitionRound, round_id)
+    if round_item is None:
+        raise HTTPException(status_code=404, detail="Round not found")
+    competition = db.get(Competition, round_item.competition_id)
+    if competition is None:
+        raise HTTPException(status_code=404, detail="Competition not found")
+    require_organization_access(db, user, competition.organization_id)
+    query = (
+        select(Challenge)
+        .where(Challenge.round_id == round_id)
         .order_by(Challenge.points, Challenge.name)
     )
     return list(db.scalars(query).all())

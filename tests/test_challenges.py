@@ -95,7 +95,8 @@ def test_challenge_lifecycle_and_public_catalog(client: TestClient, session_fact
     hidden_detail = client.get(f"/api/v1/challenges/{challenge_id}")
     assert hidden_detail.status_code == 401
     hidden_list = client.get(f"/api/v1/rounds/{round_id}/challenges", headers=headers)
-    assert hidden_list.status_code == 403
+    assert hidden_list.status_code == 200
+    assert hidden_list.json() == []
 
     configured = client.put(
         f"/api/v1/challenges/{challenge_id}/flag",
@@ -209,72 +210,49 @@ def test_duplicate_challenge_slug_and_invalid_points(client: TestClient, session
     assert invalid.status_code == 422
 
 
-def test_participant_challenges_require_competition_team_registration(
+def test_organizer_can_list_all_challenge_states_and_other_org_is_forbidden(
     client: TestClient, session_factory
 ) -> None:
-    organizer_token, organization_id = prepare_organizer(
-        client, session_factory, "registered-challenge-organizer@example.com"
+    token, organization_id = prepare_organizer(
+        client, session_factory, "challenge-manager@example.com"
     )
-    round_id = create_public_round(client, organizer_token, organization_id)
-    challenge_payload = {
-        "name": "Registered Only",
-        "slug": "registered-only",
-        "description": "Only registered teams can view this challenge.",
+    headers = {"Authorization": f"Bearer {token}"}
+    round_id = create_public_round(client, token, organization_id)
+    payload = {
+        "name": "Organizer Draft",
+        "slug": "organizer-draft",
+        "description": "A private draft challenge.",
         "category": "Web",
         "points": 100,
     }
     created = client.post(
         f"/api/v1/rounds/{round_id}/challenges",
-        json=challenge_payload,
-        headers={"Authorization": f"Bearer {organizer_token}"},
+        json=payload,
+        headers=headers,
     )
     assert created.status_code == 201
     challenge_id = created.json()["id"]
-    configured = client.put(
-        f"/api/v1/challenges/{challenge_id}/flag",
-        json={"flag": "MEDUSA{registered_only_test_flag}"},
-        headers={"Authorization": f"Bearer {organizer_token}"},
-    )
-    assert configured.status_code == 204
-    published = client.patch(
-        f"/api/v1/challenges/{challenge_id}/status",
-        json={"status": "published"},
-        headers={"Authorization": f"Bearer {organizer_token}"},
-    )
-    assert published.status_code == 200
 
-    participant_token = register_and_login(client, "registered-challenge-participant@example.com")
-    participant_headers = {"Authorization": f"Bearer {participant_token}"}
-    assert client.get(f"/api/v1/rounds/{round_id}/challenges").status_code == 401
-    assert (
-        client.get(f"/api/v1/rounds/{round_id}/challenges", headers=participant_headers).status_code
-        == 403
-    )
-    assert (
-        client.get(f"/api/v1/challenges/{challenge_id}", headers=participant_headers).status_code
-        == 403
-    )
+    public_rows = client.get(f"/api/v1/rounds/{round_id}/challenges", headers=headers)
+    assert public_rows.status_code == 200
+    assert public_rows.json() == []
 
-    team = client.post(
-        f"/api/v1/organizations/{organization_id}/teams",
-        json={"name": "Registered Challenge Team"},
-        headers=participant_headers,
+    managed = client.get(
+        f"/api/v1/rounds/{round_id}/challenges/manage",
+        headers=headers,
     )
-    assert team.status_code == 201
+    assert managed.status_code == 200
+    assert [row["id"] for row in managed.json()] == [challenge_id]
+    assert managed.json()[0]["status"] == "draft"
+
+    outsider_token = register_and_login(client, "challenge-outsider@example.com")
     with session_factory() as db:
-        from app.models.competition_round import CompetitionRound
-
-        round_item = db.get(CompetitionRound, round_id)
-        assert round_item is not None
-        competition_id = round_item.competition_id
-    registration = client.post(
-        f"/api/v1/competitions/{competition_id}/registrations",
-        json={"team_id": team.json()["id"]},
-        headers=participant_headers,
+        outsider = db.scalar(select(User).where(User.email == "challenge-outsider@example.com"))
+        assert outsider is not None
+        outsider.role = "organizer"
+        db.commit()
+    forbidden = client.get(
+        f"/api/v1/rounds/{round_id}/challenges/manage",
+        headers={"Authorization": f"Bearer {outsider_token}"},
     )
-    assert registration.status_code == 201
-    listed = client.get(f"/api/v1/rounds/{round_id}/challenges", headers=participant_headers)
-    assert listed.status_code == 200
-    assert [item["id"] for item in listed.json()] == [challenge_id]
-    detail = client.get(f"/api/v1/challenges/{challenge_id}", headers=participant_headers)
-    assert detail.status_code == 200
+    assert forbidden.status_code == 403

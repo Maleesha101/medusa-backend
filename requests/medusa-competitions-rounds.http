@@ -13,8 +13,8 @@
 @organizerEmail = organizer@example.com
 @password = Replace-With-A-Long-Local-Test-Password
 @organizationId = 1
-@competitionName = MEDUSA REST Client Test
-@competitionSlug = medusa-rest-client-test
+@competitionName = ROUND03
+@competitionSlug = round004
 @roundName = Web Recon
 @roundSlug = web-recon
 
@@ -253,24 +253,33 @@ Content-Type: application/json
 
 ### 27. Create a draft challenge (organizer/admin only)
 # @name createChallenge
-POST {{baseUrl}}/rounds/6/challenges
+POST {{baseUrl}}/rounds/13/challenges
 Authorization: Bearer {{organizerLogin.response.body.$.access_token}}
 Content-Type: application/json
 
 {
-  "name": "Lost Packet",
-  "slug": "lost-packet",
+  "name": "Lost Packet222",
+  "slug": "lost-packet222",
   "description": "Inspect the supplied packet capture and identify the beacon.",
   "category": "Forensics",
   "points": 150,
   "difficulty": "medium"
 }
 
+###configure challenge flag
+PUT {{baseUrl}}/api/v1/challenges/15/flag
+Authorization: Bearer {{organizerLogin.response.body.$.access_token}}
+Content-Type: application/json
+
+{
+  "flag": "medusa{lost_packet22}"
+}
+
 ### 28. Draft challenge is hidden from public detail (expected 404)
-GET {{baseUrl}}/challenges/6
+GET {{baseUrl}}/challenges/13
 
 ### 29. Publish the challenge
-PATCH {{baseUrl}}/challenges/1/status
+PATCH {{baseUrl}}/challenges/14/status
 Authorization: Bearer {{organizerLogin.response.body.$.access_token}}
 Content-Type: application/json
 
