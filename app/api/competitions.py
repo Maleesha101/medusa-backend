@@ -85,6 +85,8 @@ def create_competition(
     )
     db.add(competition)
     try:
+        db.flush()
+        record_audit_event(db, actor=user, action="competition.created", resource_type="competition", resource_id=competition.id, details={"organization_id": organization.id, "is_public": competition.is_public})
         db.commit()
     except IntegrityError:
         db.rollback()
@@ -211,6 +213,8 @@ def create_round(
     )
     db.add(round_item)
     try:
+        db.flush()
+        record_audit_event(db, actor=_user, action="competition.round_created", resource_type="competition_round", resource_id=round_item.id, details={"competition_id": competition.id, "position": round_item.position})
         db.commit()
     except IntegrityError:
         db.rollback()
