@@ -2,6 +2,7 @@
 
 import shutil
 import time
+from threading import Lock
 from datetime import UTC, datetime
 
 from sqlalchemy import func, select
@@ -11,6 +12,8 @@ from app.models.sandbox_instance import SandboxInstance
 from app.services.sandbox_cleanup_metrics import sandbox_cleanup_metrics
 
 _PROCESS_STARTED = time.monotonic()
+_CPU_SAMPLE: tuple[int, int] | None = None
+_CPU_SAMPLE_LOCK = Lock()
 
 
 def _read_text(path: str) -> str | None:
@@ -56,7 +59,12 @@ def _memory_metrics() -> dict[str, int | None]:
 
 
 def _cpu_percent() -> float | None:
-    """Return the host CPU busy percentage from Linux procfs, if available."""
+    """Return CPU busy percentage from a delta between procfs samples.
+
+    A first sample is intentionally unavailable: cumulative counters since boot
+    are not a meaningful measure of current load.
+    """
+    global _CPU_SAMPLE
     contents = _read_text("/proc/stat")
     if not contents:
         return None
@@ -69,7 +77,17 @@ def _cpu_percent() -> float | None:
         return None
     total = sum(values)
     idle = values[3] + (values[4] if len(values) > 4 else 0)
-    return round((total - idle) / total * 100, 2) if total else None
+    with _CPU_SAMPLE_LOCK:
+        previous = _CPU_SAMPLE
+        _CPU_SAMPLE = (total, idle)
+    if previous is None:
+        return None
+    total_delta = total - previous[0]
+    idle_delta = idle - previous[1]
+    if total_delta <= 0 or idle_delta < 0:
+        return None
+    busy_delta = max(0, total_delta - idle_delta)
+    return round(busy_delta / total_delta * 100, 2)
 
 
 def _metric(value: int | float | None, unit: str, observed_at: str) -> dict:
@@ -176,6 +194,7 @@ def collect_operational_metrics(db: Session, settings) -> dict:
         "disk_percent": _metric(disk_percent, "percent", observed_at),
         "disk_used_bytes": _metric(disk.used, "bytes", observed_at),
         "disk_total_bytes": _metric(disk.total, "bytes", observed_at),
+        "disk_free_bytes": _metric(disk.free, "bytes", observed_at),
         "process_uptime_seconds": _metric(
             round(time.monotonic() - _PROCESS_STARTED, 2), "seconds", observed_at
         ),
@@ -193,6 +212,8 @@ def collect_operational_metrics(db: Session, settings) -> dict:
         "observed_at": observed_at,
         "metrics": metrics,
         "sandbox_instances_by_state": dict(state_rows),
+        "sandbox_instance_total": sum(count for _, count in state_rows),
+        "sandbox_instances_running": dict(state_rows).get("running", 0),
         "sandbox_cleanup_by_status": dict(cleanup_rows),
         "cleanup_worker": {
             "scope": "current_api_process_only",
