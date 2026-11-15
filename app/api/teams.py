@@ -26,6 +26,7 @@ from app.schemas.teams import (
     TeamDetail,
     TeamPublic,
 )
+from app.services.audit import record_audit_event
 
 router = APIRouter(tags=["teams"])
 
@@ -111,6 +112,14 @@ def create_team(
     try:
         db.flush()
         db.add(Membership(team_id=team.id, user_id=user.id, role="captain"))
+        record_audit_event(
+            db,
+            actor=user,
+            action="team.created",
+            resource_type="team",
+            resource_id=team.id,
+            details={"organization_id": organization_id},
+        )
         db.commit()
     except IntegrityError:
         db.rollback()
@@ -163,6 +172,13 @@ def create_team_invitation_code(
         db.add(invitation)
     else:
         invitation.code_hash = code_hash
+    record_audit_event(
+        db,
+        actor=user,
+        action="team.invitation_code_rotated",
+        resource_type="team",
+        resource_id=team.id,
+    )
     db.commit()
     return InvitationCodeResponse(code=code)
 
@@ -199,6 +215,14 @@ def join_team_with_invitation_code(
         raise HTTPException(status_code=409, detail="You are already a member of this team")
     db.add(Membership(team_id=team.id, user_id=user.id, role="member"))
     try:
+        record_audit_event(
+            db,
+            actor=user,
+            action="team.member_joined",
+            resource_type="team",
+            resource_id=team.id,
+            details={"member_user_id": user.id},
+        )
         db.commit()
     except IntegrityError:
         db.rollback()
@@ -250,6 +274,14 @@ def transfer_captaincy(
     current_membership.role = "member"
     target_membership.role = "captain"
     team.captain_user_id = target_membership.user_id
+    record_audit_event(
+        db,
+        actor=user,
+        action="team.captain_transferred",
+        resource_type="team",
+        resource_id=team.id,
+        details={"new_captain_user_id": target_membership.user_id},
+    )
     db.commit()
     db.refresh(team)
     return _team_detail(db, team)
@@ -291,6 +323,14 @@ def remove_team_member(
             detail="Captaincy must be transferred before removing this member",
         )
     db.delete(membership)
+    record_audit_event(
+        db,
+        actor=user,
+        action="team.member_removed",
+        resource_type="team",
+        resource_id=team.id,
+        details={"member_user_id": member_user_id},
+    )
     db.commit()
 
 
@@ -325,4 +365,12 @@ def leave_team(
             detail="Team captain cannot leave until captaincy transfer is supported",
         )
     db.delete(membership)
+    record_audit_event(
+        db,
+        actor=user,
+        action="team.member_left",
+        resource_type="team",
+        resource_id=team.id,
+        details={"member_user_id": user.id},
+    )
     db.commit()

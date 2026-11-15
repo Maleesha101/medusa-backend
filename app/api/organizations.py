@@ -10,6 +10,7 @@ from app.db.session import get_db
 from app.models.organization import Organization
 from app.models.user import User
 from app.schemas.organizations import OrganizationCreate, OrganizationPublic
+from app.services.audit import record_audit_event
 
 router = APIRouter(prefix="/organizations", tags=["organizations"])
 
@@ -40,6 +41,15 @@ def create_organization(
     )
     db.add(organization)
     try:
+        db.flush()
+        record_audit_event(
+            db,
+            actor=user,
+            action="organization.created",
+            resource_type="organization",
+            resource_id=organization.id,
+            details={"slug": organization.slug},
+        )
         db.commit()
     except IntegrityError:
         db.rollback()

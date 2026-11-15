@@ -10,6 +10,7 @@ from app.db.session import get_db
 from app.models.branding_settings import BrandingSettings
 from app.models.user import User
 from app.schemas.branding import HeaderIconPublic, HeaderIconUpdate
+from app.services.audit import record_audit_event
 
 router = APIRouter(prefix="/branding", tags=["branding"])
 
@@ -46,5 +47,13 @@ def update_header_icon(
         settings.header_icon = base64.b64decode(encoded, validate=True)
         settings.header_icon_mime_type = header[5:].split(";", 1)[0]
 
+    record_audit_event(
+        db,
+        actor=_admin,
+        action="branding.header_icon_updated",
+        resource_type="branding_settings",
+        resource_id=1,
+        details={"cleared": payload.image_data_url is None},
+    )
     db.commit()
     return read_header_icon(db)

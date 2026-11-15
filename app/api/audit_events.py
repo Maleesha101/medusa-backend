@@ -1,6 +1,8 @@
 """Administrative audit event query endpoint."""
 
-from fastapi import APIRouter, Depends, Query
+from datetime import datetime
+
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -18,12 +20,18 @@ def list_audit_events(
     action: str | None = Query(default=None, min_length=1, max_length=100),
     resource_type: str | None = Query(default=None, min_length=1, max_length=50),
     actor_user_id: int | None = Query(default=None, ge=1),
+    outcome: str | None = Query(default=None, min_length=1, max_length=30),
+    created_after: datetime | None = Query(default=None),
+    created_before: datetime | None = Query(default=None),
     limit: int = Query(default=50, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
     _admin: User = Depends(require_roles("admin")),
 ) -> list[AuditEvent]:
     """List newest audit events; only platform administrators may access this endpoint."""
+    if created_after is not None and created_before is not None and created_after > created_before:
+        raise HTTPException(status_code=422, detail="created_after must be before created_before")
+
     query = select(AuditEvent)
     if action is not None:
         query = query.where(AuditEvent.action == action)
@@ -31,6 +39,12 @@ def list_audit_events(
         query = query.where(AuditEvent.resource_type == resource_type)
     if actor_user_id is not None:
         query = query.where(AuditEvent.actor_user_id == actor_user_id)
+    if outcome is not None:
+        query = query.where(AuditEvent.outcome == outcome)
+    if created_after is not None:
+        query = query.where(AuditEvent.created_at >= created_after)
+    if created_before is not None:
+        query = query.where(AuditEvent.created_at <= created_before)
     query = query.order_by(AuditEvent.created_at.desc(), AuditEvent.id.desc())
     query = query.offset(offset).limit(limit)
     return list(db.scalars(query).all())
