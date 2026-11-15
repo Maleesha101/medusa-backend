@@ -28,6 +28,39 @@ services:
         condition: service_started
     restart: unless-stopped
 
+  ops-alert-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: medusa-backend:v1
+    command:
+      - /bin/sh
+      - -c
+      - while true; do python -m app.services.operational_alert_worker --batch-size 100; sleep 30; done
+    environment:
+      APP_ENV: development
+      DATABASE_URL: postgresql+psycopg://medusa:medusa_dev_only@postgres:5432/medusa
+      SMTP_HOST: mailpit
+      SMTP_PORT: 1025
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM_EMAIL: ${SMTP_FROM_EMAIL:-no-reply@medusa.local}
+      SMTP_USE_TLS: ${SMTP_USE_TLS:-false}
+      OPS_CPU_WARNING_PERCENT: ${OPS_CPU_WARNING_PERCENT:-80}
+      OPS_CPU_CRITICAL_PERCENT: ${OPS_CPU_CRITICAL_PERCENT:-95}
+      OPS_MEMORY_WARNING_PERCENT: ${OPS_MEMORY_WARNING_PERCENT:-80}
+      OPS_MEMORY_CRITICAL_PERCENT: ${OPS_MEMORY_CRITICAL_PERCENT:-95}
+      OPS_DISK_WARNING_PERCENT: ${OPS_DISK_WARNING_PERCENT:-80}
+      OPS_DISK_CRITICAL_PERCENT: ${OPS_DISK_CRITICAL_PERCENT:-95}
+      OPS_CLEANUP_WARNING_COUNT: ${OPS_CLEANUP_WARNING_COUNT:-5}
+      OPS_CLEANUP_CRITICAL_COUNT: ${OPS_CLEANUP_CRITICAL_COUNT:-20}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mailpit:
+        condition: service_started
+    restart: unless-stopped
+
   mailpit:
     image: axllent/mailpit:v1.27
     container_name: medusa-mailpit
