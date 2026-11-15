@@ -12,8 +12,8 @@
 @organizerEmail = organizer@example.com
 @memberEmail = member@example.com
 @password = Replace-With-A-Long-Local-Test-Password
-@organizationSlug = uok-rest-client
-@organizationName = University of Kelaniya REST Client Test
+@organizationSlug = uok-rest-client2
+@organizationName = University of Kelaniya REST Client Test2
 @teamName = MEDUSA REST Client Team
 
 ### 1. Health check

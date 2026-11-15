@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import select
 
@@ -63,13 +63,10 @@ def test_audit_events_require_authentication(client):
     assert response.status_code == 401
 
 
-
 def test_organization_and_team_mutations_are_audited(client, session_factory):
     organizer_token = _register_and_login(client, "audit-organizer@example.com")
     with session_factory() as db:
-        organizer = db.scalar(
-            select(User).where(User.email == "audit-organizer@example.com")
-        )
+        organizer = db.scalar(select(User).where(User.email == "audit-organizer@example.com"))
         assert organizer is not None
         organizer.role = "organizer"
         db.commit()
@@ -91,9 +88,7 @@ def test_organization_and_team_mutations_are_audited(client, session_factory):
     assert team.status_code == 201
     team_id = team.json()["id"]
 
-    invitation = client.post(
-        f"/api/v1/teams/{team_id}/invitation-code", headers=headers
-    )
+    invitation = client.post(f"/api/v1/teams/{team_id}/invitation-code", headers=headers)
     assert invitation.status_code == 200
     raw_code = invitation.json()["code"]
 
@@ -117,13 +112,10 @@ def test_organization_and_team_mutations_are_audited(client, session_factory):
     assert all(raw_code not in item for item in details)
 
 
-
 def test_audit_events_filter_by_actor_outcome_and_time_range(client, session_factory):
     admin_token = _register_and_login(client, "audit-filter-admin@example.com")
     with session_factory() as db:
-        admin = db.scalar(
-            select(User).where(User.email == "audit-filter-admin@example.com")
-        )
+        admin = db.scalar(select(User).where(User.email == "audit-filter-admin@example.com"))
         assert admin is not None
         admin.role = "admin"
         db.flush()
@@ -137,7 +129,7 @@ def test_audit_events_filter_by_actor_outcome_and_time_range(client, session_fac
                 resource_type="team",
                 resource_id=7,
                 details={"reason": "permission_denied"},
-                created_at=datetime(2026, 1, 2, 12, 0, tzinfo=timezone.utc),
+                created_at=datetime(2026, 1, 2, 12, 0, tzinfo=UTC),
             )
         )
         db.add(
@@ -148,7 +140,7 @@ def test_audit_events_filter_by_actor_outcome_and_time_range(client, session_fac
                 outcome="success",
                 resource_type="team",
                 resource_id=8,
-                created_at=datetime(2026, 1, 2, 12, 0, tzinfo=timezone.utc),
+                created_at=datetime(2026, 1, 2, 12, 0, tzinfo=UTC),
             )
         )
         db.commit()

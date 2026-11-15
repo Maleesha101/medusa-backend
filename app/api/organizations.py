@@ -42,7 +42,14 @@ def create_organization(
     db.add(organization)
     try:
         db.flush()
-        record_audit_event(db, actor=user, action="organization.created", resource_type="organization", resource_id=organization.id, details={"slug": organization.slug})
+        record_audit_event(
+            db,
+            actor=user,
+            action="organization.created",
+            resource_type="organization",
+            resource_id=organization.id,
+            details={"slug": organization.slug},
+        )
         db.commit()
     except IntegrityError:
         db.rollback()
