@@ -1,3 +1,5 @@
+from datetime import datetime, timezone
+
 from sqlalchemy import select
 
 from app.models.audit_event import AuditEvent
@@ -113,3 +115,66 @@ def test_organization_and_team_mutations_are_audited(client, session_factory):
     assert "team.invitation_code_rotated" in actions
     assert "team.member_joined" in actions
     assert all(raw_code not in item for item in details)
+
+
+
+def test_audit_events_filter_by_actor_outcome_and_time_range(client, session_factory):
+    admin_token = _register_and_login(client, "audit-filter-admin@example.com")
+    with session_factory() as db:
+        admin = db.scalar(
+            select(User).where(User.email == "audit-filter-admin@example.com")
+        )
+        assert admin is not None
+        admin.role = "admin"
+        db.flush()
+        actor_id = admin.id
+        db.add(
+            AuditEvent(
+                actor_user_id=actor_id,
+                actor_role="admin",
+                action="team.member_removed",
+                outcome="failure",
+                resource_type="team",
+                resource_id=7,
+                details={"reason": "permission_denied"},
+                created_at=datetime(2026, 1, 2, 12, 0, tzinfo=timezone.utc),
+            )
+        )
+        db.add(
+            AuditEvent(
+                actor_user_id=actor_id,
+                actor_role="admin",
+                action="team.member_joined",
+                outcome="success",
+                resource_type="team",
+                resource_id=8,
+                created_at=datetime(2026, 1, 2, 12, 0, tzinfo=timezone.utc),
+            )
+        )
+        db.commit()
+
+    headers = {"Authorization": f"Bearer {admin_token}"}
+    response = client.get(
+        "/api/v1/audit-events",
+        params={
+            "actor_user_id": actor_id,
+            "outcome": "failure",
+            "created_after": "2026-01-01T00:00:00Z",
+            "created_before": "2026-01-03T00:00:00Z",
+        },
+        headers=headers,
+    )
+    assert response.status_code == 200
+    assert len(response.json()) == 1
+    assert response.json()[0]["action"] == "team.member_removed"
+    assert response.json()[0]["outcome"] == "failure"
+
+    reversed_range = client.get(
+        "/api/v1/audit-events",
+        params={
+            "created_after": "2026-01-03T00:00:00Z",
+            "created_before": "2026-01-01T00:00:00Z",
+        },
+        headers=headers,
+    )
+    assert reversed_range.status_code == 422
