@@ -75,7 +75,8 @@ def _cpu_percent() -> float | None:
         return None
     if len(values) < 4:
         return None
-    total = sum(values)
+    # guest and guest_nice are already included in user and nice counters.
+    total = sum(values[:8]) if len(values) >= 8 else sum(values)
     idle = values[3] + (values[4] if len(values) > 4 else 0)
     with _CPU_SAMPLE_LOCK:
         previous = _CPU_SAMPLE
