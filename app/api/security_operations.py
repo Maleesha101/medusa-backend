@@ -10,6 +10,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from fastapi import APIRouter, Body, Depends, Header, HTTPException, Query, Response
+from fastapi.responses import JSONResponse
 import jwt
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -584,8 +585,13 @@ def report_data(report_id: int, db: Session = Depends(get_db), user: User = _ADM
                              SecurityAlert.status.notin_(("Resolved", "False positive"))).count(),
                          db.query(SecurityCase).filter(SecurityCase.status != "Closed").count(),
                          db.query(SecurityRule).filter(SecurityRule.enabled.is_(True)).count()])
-    return Response(output.getvalue(), media_type="text/csv",
-                    headers={"Content-Disposition": f'attachment; filename="medusa-soc-{report.report_type}-{report_id}.csv"'})
+    extension = "json" if report.parameters.get("format") == "json" else "csv"
+    filename = f"medusa-soc-{report.report_type}-{report_id}.{extension}"
+    headers = {"Content-Disposition": f'attachment; filename="{filename}"'}
+    if extension == "json":
+        rows = list(csv.DictReader(io.StringIO(output.getvalue())))
+        return JSONResponse(rows, headers=headers)
+    return Response(output.getvalue(), media_type="text/csv", headers=headers)
 
 
 
