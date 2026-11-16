@@ -33,6 +33,7 @@ from app.schemas.auth import (
     UserPublic,
     UserRegister,
 )
+from app.services.security_operations import record_security_event
 
 router = APIRouter(prefix="/auth", tags=["authentication"])
 
@@ -77,6 +78,16 @@ def register(
             status_code=409, detail="An account with this email already exists"
         ) from None
     db.refresh(user)
+    record_security_event(
+        db,
+        request=request,
+        event_type="auth.register.success",
+        category="auth",
+        user=user,
+        result="success",
+        target="register",
+    )
+    db.commit()
     return user
 
 
@@ -105,16 +116,59 @@ def issue_token(
     email = form_data.username.strip().lower()
     user = db.scalar(select(User).where(User.email == email))
     if (
+        user is not None
+        and user.is_active
+        and verify_password(form_data.password, user.password_hash)
+        and user.force_password_reset
+    ):
+        record_security_event(
+            db,
+            request=request,
+            event_type="auth.password_reset.required",
+            category="auth",
+            user=user,
+            result="blocked",
+            severity="Medium",
+            target="login",
+        )
+        db.commit()
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="A password reset is required before you can sign in.",
+        )
+
+    if (
         user is None
         or not verify_password(form_data.password, user.password_hash)
         or not user.is_active
     ):
+        record_security_event(
+            db,
+            request=request,
+            event_type="auth.login.failure",
+            category="auth",
+            user=user,
+            result="failure",
+            severity="High",
+            target="login",
+        )
+        db.commit()
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid email or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
+    record_security_event(
+        db,
+        request=request,
+        event_type="auth.login.success",
+        category="auth",
+        user=user,
+        result="success",
+        target="login",
+    )
+    db.commit()
     token, expires_in = create_access_token(str(user.id), user.auth_version)
     return TokenResponse(access_token=token, expires_in=expires_in)
 
@@ -249,6 +303,7 @@ def confirm_password_reset(
         raise invalid
 
     user.password_hash = hash_password(payload.new_password)
+    user.force_password_reset = False
     user.auth_version += 1
     db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
