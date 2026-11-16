@@ -403,6 +403,42 @@ def remove_watchlist(entity_type: str, entity_id: str, db: Session = Depends(get
     return Response(status_code=204)
 
 
+@router.get("/saved-views")
+def list_saved_views(db: Session = Depends(get_db), user: User = _ADMIN) -> dict[str, Any]:
+    rows = list(db.scalars(select(SecuritySavedView).where(SecuritySavedView.user_id == user.id)
+                           .order_by(SecuritySavedView.created_at.desc())).all())
+    return {"items": [{"id": str(row.id), "name": row.name, "query": row.query} for row in rows]}
+
+
+@router.post("/saved-views", status_code=201)
+def create_saved_view(payload: dict[str, str] = Body(...), db: Session = Depends(get_db),
+                      user: User = _ADMIN) -> dict[str, Any]:
+    name, query = payload.get("name", "").strip(), payload.get("query", "").strip()
+    if not name or len(name) > 100 or len(query) > 500:
+        raise HTTPException(422, "Saved view name and query are invalid")
+    row = db.scalar(select(SecuritySavedView).where(SecuritySavedView.user_id == user.id,
+                                                    SecuritySavedView.name == name))
+    if row is None:
+        row = SecuritySavedView(user_id=user.id, name=name, query=query)
+        db.add(row)
+    else:
+        row.query = query
+    db.commit()
+    db.refresh(row)
+    return {"id": str(row.id), "name": row.name, "query": row.query}
+
+
+@router.delete("/saved-views/{view_id}", status_code=204)
+def delete_saved_view(view_id: int, db: Session = Depends(get_db),
+                      user: User = _ADMIN) -> Response:
+    row = db.scalar(select(SecuritySavedView).where(SecuritySavedView.id == view_id,
+                                                    SecuritySavedView.user_id == user.id))
+    if row:
+        db.delete(row)
+        db.commit()
+    return Response(status_code=204)
+
+
 @router.get("/settings")
 def get_soc_settings(db: Session = Depends(get_db), user: User = _ADMIN) -> dict[str, Any]:
     row = db.get(SecuritySettings, 1)
