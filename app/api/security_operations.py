@@ -14,22 +14,30 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 from urllib.parse import quote
 
+import jwt
 from fastapi import APIRouter, BackgroundTasks, Body, Depends, Header, HTTPException, Query, Response
 from fastapi.responses import JSONResponse
-import jwt
 from sqlalchemy import or_, select, update
 from sqlalchemy.orm import Session
 
 from app.api.dependencies import require_roles
-from app.core.email import send_password_reset_email
 from app.core.config import get_settings
+from app.core.email import send_password_reset_email
 from app.core.security import verify_password
 from app.db.session import get_db
 from app.models.audit_event import AuditEvent
 from app.models.password_reset_token import PasswordResetToken
 from app.models.security_operations import (
-    SecurityAlert, SecurityCase, SecurityEvent, SecurityReport, SecurityResponseAction,
-    SecurityRule, SecurityRuleChange, SecuritySavedView, SecuritySettings, SecurityWatchlist,
+    SecurityAlert,
+    SecurityCase,
+    SecurityEvent,
+    SecurityReport,
+    SecurityResponseAction,
+    SecurityRule,
+    SecurityRuleChange,
+    SecuritySavedView,
+    SecuritySettings,
+    SecurityWatchlist,
 )
 from app.models.team import Team
 from app.models.user import User
