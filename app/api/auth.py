@@ -24,7 +24,8 @@ from app.core.security import (
 from app.core.token_revocation import revoke_access_token
 from app.db.session import get_db
 from app.models.password_reset_token import PasswordResetToken
-from app.models.user import User\nfrom app.services.security_operations import record_security_event
+from app.models.user import User
+from app.services.security_operations import record_security_event
 from app.schemas.auth import (
     PasswordResetConfirm,
     PasswordResetRequest,
