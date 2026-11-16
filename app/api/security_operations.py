@@ -680,7 +680,9 @@ def report_data(report_id: int, db: Session = Depends(get_db), user: User = _ADM
         for alert in db.scalars(select(SecurityAlert).where(SecurityAlert.last_seen >= since)
                                 .order_by(SecurityAlert.last_seen.desc()).limit(5000)).all():
             writer.writerow([alert.id, alert.title, alert.severity, alert.status, alert.rule_name,
-                             alert.entity_type, alert.entity_id, _ms(alert.first_seen), _ms(alert.last_seen),
+                             alert.entity_type,
+                             _mask_ip(alert.entity_id) if alert.entity_type == "ip" else alert.entity_id,
+                             _ms(alert.first_seen), _ms(alert.last_seen),
                              alert.event_count, alert.assignee, alert.case_id or ""])
     elif report.report_type == "rules":
         writer.writerow(["id", "name", "group", "enabled", "severity", "threshold", "window_minutes",
