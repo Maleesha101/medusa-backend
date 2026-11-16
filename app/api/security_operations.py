@@ -399,9 +399,12 @@ def list_entities(db: Session = Depends(get_db), user: User = _ADMIN) -> dict[st
     rows = list(db.scalars(select(SecurityEvent).order_by(SecurityEvent.created_at.desc()).limit(5000)).all())
     groups: dict[tuple[str, str], dict[str, Any]] = {}
     for row in rows:
-        for kind, key, label in (("user", str(row.user_id or ""), str(row.user_id or "Unknown")),
-                                 ("team", str(row.team_id or ""), str(row.team_id or "Unknown")),
-                                 ("ip", row.ip or "", _mask_ip(row.ip)), ("device", row.device, row.device)):
+        actor = db.get(User, row.user_id) if row.user_id else None
+        team = db.get(Team, row.team_id) if row.team_id else None
+        for kind, key, label in (("user", str(row.user_id or ""), f"User #{row.user_id}" if actor else "Unknown"),
+                                 ("team", str(row.team_id or ""), team.name if team else "Unknown"),
+                                 ("ip", _mask_ip(row.ip) if row.ip else "", _mask_ip(row.ip)),
+                                 ("device", row.device, row.device)):
             if not key:
                 continue
             item = groups.setdefault((kind, key), {"id": key, "type": kind, "label": label,
