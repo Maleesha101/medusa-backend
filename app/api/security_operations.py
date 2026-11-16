@@ -715,6 +715,7 @@ def create_response_action(background_tasks: BackgroundTasks, payload: dict[str,
                 token_hash=hashlib.sha256(raw_token.encode("utf-8")).hexdigest(),
                 expires_at=now + timedelta(minutes=settings.password_reset_token_expire_minutes),
             ))
+            subject.force_password_reset = True
             subject.auth_version += 1
             reset_link = f"{settings.password_reset_url}?token={quote(raw_token, safe='')}"
             background_tasks.add_task(send_password_reset_email, subject.email, reset_link)
