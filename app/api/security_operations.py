@@ -97,6 +97,8 @@ def _event(db: Session, row: SecurityEvent, *, reveal_pii: bool = False, alert_i
 def _mask_ip(value: str | None) -> str:
     if not value:
         return "—"
+    if value.endswith(".xxx") or value.endswith(":xxxx") or value == "xxx":
+        return value
     if ":" in value:
         return ":".join(value.split(":")[:3]) + ":xxxx"
     parts = value.split(".")
