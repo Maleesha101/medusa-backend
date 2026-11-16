@@ -116,6 +116,28 @@ def issue_token(
     email = form_data.username.strip().lower()
     user = db.scalar(select(User).where(User.email == email))
     if (
+        user is not None
+        and user.is_active
+        and verify_password(form_data.password, user.password_hash)
+        and user.force_password_reset
+    ):
+        record_security_event(
+            db,
+            request=request,
+            event_type="auth.password_reset.required",
+            category="auth",
+            user=user,
+            result="blocked",
+            severity="Medium",
+            target="login",
+        )
+        db.commit()
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="A password reset is required before you can sign in.",
+        )
+
+    if (
         user is None
         or not verify_password(form_data.password, user.password_hash)
         or not user.is_active
@@ -281,6 +303,7 @@ def confirm_password_reset(
         raise invalid
 
     user.password_hash = hash_password(payload.new_password)
+    user.force_password_reset = False
     user.auth_version += 1
     db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
