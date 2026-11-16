@@ -145,3 +145,17 @@ def test_soc_investigations_rules_settings_and_reports_are_persisted(client, ses
 def test_soc_endpoints_require_authentication(client):
     assert client.get("/api/v1/soc/events").status_code == 401
     assert client.get("/api/v1/soc/cases").status_code == 401
+
+
+
+def test_soc_detects_multiple_accounts_sharing_one_source_ip(client, session_factory):
+    token = _make_admin(client, session_factory, "soc-multi-account-admin@example.com")
+    for index in range(3):
+        _register_and_login(client, f"soc-shared-ip-{index}@example.com")
+
+    response = client.get(
+        "/api/v1/soc/alerts?limit=100",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert response.status_code == 200
+    assert any(item["ruleId"] == "r_multiaccount" for item in response.json()["items"])
