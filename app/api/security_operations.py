@@ -15,9 +15,19 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 from urllib.parse import quote
 
-from fastapi import APIRouter, BackgroundTasks, Body, Depends, Header, HTTPException, Query, Request, Response
-from fastapi.responses import JSONResponse
 import jwt
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Body,
+    Depends,
+    Header,
+    HTTPException,
+    Query,
+    Request,
+    Response,
+)
+from fastapi.responses import JSONResponse
 from sqlalchemy import or_, select, update
 from sqlalchemy.orm import Session
 
