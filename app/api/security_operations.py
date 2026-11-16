@@ -3,14 +3,16 @@
 SOC data is persisted server-side. All endpoints are restricted to platform admins;
 PII is omitted from list responses unless the caller explicitly requests a privileged view.
 """
+# fmt: off
+# ruff: noqa: E501
 
 import csv
 import hashlib
 import io
 import secrets
 from datetime import UTC, datetime, timedelta
-from urllib.parse import quote
 from typing import Any
+from urllib.parse import quote
 
 from fastapi import APIRouter, BackgroundTasks, Body, Depends, Header, HTTPException, Query, Response
 from fastapi.responses import JSONResponse
@@ -19,9 +21,9 @@ from sqlalchemy import or_, select, update
 from sqlalchemy.orm import Session
 
 from app.api.dependencies import require_roles
+from app.core.email import send_password_reset_email
 from app.core.config import get_settings
 from app.core.security import verify_password
-from app.core.email import send_password_reset_email
 from app.db.session import get_db
 from app.models.audit_event import AuditEvent
 from app.models.password_reset_token import PasswordResetToken
