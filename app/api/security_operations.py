@@ -12,7 +12,7 @@ from typing import Any
 from fastapi import APIRouter, Body, Depends, Header, HTTPException, Query, Response
 from fastapi.responses import JSONResponse
 import jwt
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from app.api.dependencies import require_roles
@@ -557,8 +557,15 @@ def report_data(report_id: int, db: Session = Depends(get_db), user: User = _ADM
     writer = csv.writer(output)
     if report.report_type == "events":
         writer.writerow(["id", "timestamp", "type", "category", "actor_id", "result", "severity", "ip", "target"])
-        for event in db.scalars(select(SecurityEvent).where(SecurityEvent.created_at >= since)
-                                .order_by(SecurityEvent.created_at.desc()).limit(5000)).all():
+        event_query = select(SecurityEvent).where(SecurityEvent.created_at >= since)
+        search = str(report.parameters.get("search", "")).strip()
+        if search:
+            event_query = event_query.where(
+                or_(SecurityEvent.event_type.ilike(f"%{search}%"),
+                    SecurityEvent.target.ilike(f"%{search}%"),
+                    SecurityEvent.ip.ilike(f"%{search}%"))
+            )
+        for event in db.scalars(event_query.order_by(SecurityEvent.created_at.desc()).limit(5000)).all():
             writer.writerow([event.id, _ms(event.created_at), event.event_type, event.category,
                              event.user_id or "", event.result, event.severity, _mask_ip(event.ip), event.target])
     elif report.report_type == "alerts":
