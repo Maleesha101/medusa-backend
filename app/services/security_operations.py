@@ -3,6 +3,7 @@
 # ruff: noqa: E501
 
 import hashlib
+import ipaddress
 import uuid
 from datetime import UTC, datetime, timedelta
 from typing import Any
@@ -11,7 +12,7 @@ from fastapi import Request
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.models.security_operations import SecurityAlert, SecurityEvent, SecurityRule
+from app.models.security_operations import SecurityAlert, SecurityEvent, SecurityRule, SecuritySettings
 from app.models.user import User
 
 RULES = (
@@ -98,6 +99,15 @@ def evaluate_security_rules(db: Session, event: SecurityEvent) -> None:
     match = supported.get(event.event_type)
     if not match or event.result not in {"failure", "incorrect"}:
         return
+    settings_row = db.get(SecuritySettings, 1)
+    settings = settings_row.config if settings_row else {}
+    if event.ip:
+        for raw_network in str(settings.get("allowIps", "")).replace(",", "\\n").splitlines():
+            try:
+                if ipaddress.ip_address(event.ip) in ipaddress.ip_network(raw_network.strip(), strict=False):
+                    return
+            except ValueError:
+                continue
     rule_id, entity_type, entity_id = match
     rule = db.get(SecurityRule, rule_id)
     if rule is None or not rule.enabled:
@@ -118,6 +128,19 @@ def evaluate_security_rules(db: Session, event: SecurityEvent) -> None:
     rule.last_eval = now
     if count < rule.threshold:
         return
+    suppression_hours = int(settings.get("suppressionHours", 0) or 0)
+    if suppression_hours:
+        recently_resolved = db.scalar(
+            select(SecurityAlert.id).where(
+                SecurityAlert.rule_id == rule_id,
+                SecurityAlert.entity_type == entity_type,
+                SecurityAlert.entity_id == entity_id,
+                SecurityAlert.status.in_(("Resolved", "False positive")),
+                SecurityAlert.last_seen >= now - timedelta(hours=suppression_hours),
+            ).limit(1)
+        )
+        if recently_resolved:
+            return
     entity_label = entity_id
     alert = db.scalar(
         select(SecurityAlert).where(
