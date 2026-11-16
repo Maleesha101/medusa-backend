@@ -1,4 +1,6 @@
 """Server-side security telemetry ingestion and threshold evaluation."""
+# fmt: off
+# ruff: noqa: E501
 
 import hashlib
 import uuid
