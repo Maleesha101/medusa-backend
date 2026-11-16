@@ -45,17 +45,20 @@ SUPPORTED_RULES = {"r_bruteauth", "r_bruteforce", "r_ratestreak", "r_multiaccoun
 
 def seed_rules(db: Session) -> None:
     for rule_id, name, group, severity, threshold, window in RULES:
-        if db.get(SecurityRule, rule_id) is None:
-            supported = rule_id in SUPPORTED_RULES
+        supported = rule_id in SUPPORTED_RULES
+        scope = ("Authentication" if rule_id in {"r_bruteauth", "r_multiaccount", "r_spray", "r_rapidsignup"}
+                 else "Flag submissions" if rule_id == "r_bruteforce"
+                 else "Platform rate limits" if rule_id == "r_ratestreak"
+                 else "Telemetry unavailable")
+        existing = db.get(SecurityRule, rule_id)
+        if existing is None:
             db.add(SecurityRule(
                 id=rule_id, name=name, rule_group=group, severity=severity,
-                threshold=threshold, window_minutes=window, enabled=supported,
-                scope=("Authentication" if rule_id == "r_bruteauth" else
-                       "Flag submissions" if rule_id == "r_bruteforce" else
-                       "Platform rate limits" if rule_id == "r_ratestreak" else
-                       "Authentication" if rule_id in {"r_multiaccount", "r_spray", "r_rapidsignup"}
-                       else "Telemetry unavailable"),
+                threshold=threshold, window_minutes=window, enabled=supported, scope=scope,
             ))
+        elif supported and existing.scope == "Telemetry unavailable":
+            existing.enabled = True
+            existing.scope = scope
     db.flush()
 
 
