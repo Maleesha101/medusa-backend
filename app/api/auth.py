@@ -25,7 +25,6 @@ from app.core.token_revocation import revoke_access_token
 from app.db.session import get_db
 from app.models.password_reset_token import PasswordResetToken
 from app.models.user import User
-from app.services.security_operations import record_security_event
 from app.schemas.auth import (
     PasswordResetConfirm,
     PasswordResetRequest,
@@ -34,6 +33,7 @@ from app.schemas.auth import (
     UserPublic,
     UserRegister,
 )
+from app.services.security_operations import record_security_event
 
 router = APIRouter(prefix="/auth", tags=["authentication"])
 
