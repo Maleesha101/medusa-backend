@@ -350,6 +350,8 @@ def update_rule(rule_id: str, payload: dict[str, Any] = Body(...),
     allowed = {"enabled", "severity", "threshold", "windowMin", "scope"}
     if set(payload) - allowed:
         raise HTTPException(422, "Unsupported rule fields")
+    if payload.get("enabled") is True and rule_id not in {"r_bruteauth", "r_bruteforce"}:
+        raise HTTPException(409, "This rule is disabled because its source telemetry is not implemented")
     before = {key: getattr(row, {"windowMin": "window_minutes"}.get(key, key)) for key in payload}
     for key, value in payload.items():
         if key == "severity" and value not in {"Critical", "High", "Medium", "Low", "Info"}:
