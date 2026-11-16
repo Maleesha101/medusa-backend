@@ -2,8 +2,8 @@
 
 import shutil
 import time
-from threading import Lock
 from datetime import UTC, datetime
+from threading import Lock
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
