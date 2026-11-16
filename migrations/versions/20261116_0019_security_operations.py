@@ -8,6 +8,7 @@ Create Date: 2026-11-16
 from collections.abc import Sequence
 
 from alembic import op
+import sqlalchemy as sa
 
 from app.db.base import Base
 from app.models import security_operations  # noqa: F401
@@ -35,9 +36,14 @@ def upgrade() -> None:
     bind = op.get_bind()
     for name in _TABLES:
         Base.metadata.tables[name].create(bind=bind, checkfirst=True)
+    op.add_column(
+        "users",
+        sa.Column("force_password_reset", sa.Boolean(), nullable=False, server_default=sa.false()),
+    )
 
 
 def downgrade() -> None:
     bind = op.get_bind()
     for name in reversed(_TABLES):
         Base.metadata.tables[name].drop(bind=bind, checkfirst=True)
+    op.drop_column("users", "force_password_reset")
