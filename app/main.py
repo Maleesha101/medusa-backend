@@ -10,7 +10,7 @@ from app.api.competitions import router as competitions_router
 from app.api.health import router as health_router
 from app.api.operations import router as operations_router
 from app.api.organizations import router as organizations_router
-from app.api.scoreboard import router as scoreboard_router
+from app.api.security_operations import router as security_operations_router\nfrom app.api.scoreboard import router as scoreboard_router
 from app.api.scoreboard_realtime import router as scoreboard_realtime_router
 from app.api.submissions import router as submissions_router
 from app.api.teams import router as teams_router
@@ -35,7 +35,7 @@ def create_app() -> FastAPI:
     application.include_router(auth_router, prefix=settings.api_v1_prefix)
     application.include_router(branding_router, prefix=settings.api_v1_prefix)
     application.include_router(audit_events_router, prefix=settings.api_v1_prefix)
-    application.include_router(operations_router, prefix=settings.api_v1_prefix)
+    application.include_router(operations_router, prefix=settings.api_v1_prefix)\n    application.include_router(security_operations_router, prefix=settings.api_v1_prefix)
     application.include_router(organizations_router, prefix=settings.api_v1_prefix)
     application.include_router(teams_router, prefix=settings.api_v1_prefix)
     application.include_router(competitions_router, prefix=settings.api_v1_prefix)
