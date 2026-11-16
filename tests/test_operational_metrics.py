@@ -80,3 +80,19 @@ def test_operational_alert_thresholds_are_deterministic():
         ("medusa.memory", "critical"),
         ("medusa.cleanup_failures", "warning"),
     ]
+
+
+def test_cpu_percent_uses_interval_delta_not_cumulative_since_boot(monkeypatch):
+    from app.services import operational_metrics
+
+    samples = iter(
+        [
+            "cpu 100 0 0 50 0 0 0 0",
+            "cpu 200 0 0 70 0 0 0 0",
+        ]
+    )
+    monkeypatch.setattr(operational_metrics, "_CPU_SAMPLE", None)
+    monkeypatch.setattr(operational_metrics, "_read_text", lambda path: next(samples))
+
+    assert operational_metrics._cpu_percent() is None
+    assert operational_metrics._cpu_percent() == 83.33
