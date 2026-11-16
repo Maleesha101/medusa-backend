@@ -115,28 +115,48 @@ def list_events(
     search: str | None = Query(None, max_length=200), reveal_pii: bool = False,
     db: Session = Depends(get_db), user: User = _ADMIN,
 ) -> dict[str, Any]:
-    query = select(SecurityEvent).order_by(SecurityEvent.created_at.desc(), SecurityEvent.id.desc())
-    if since is not None:
-        query = query.where(SecurityEvent.created_at >= datetime.fromtimestamp(since / 1000, UTC))
-    if severity:
-        query = query.where(SecurityEvent.severity == severity)
-    if category:
-        query = query.where(SecurityEvent.category == category)
-    if search:
-        query = query.where(or_(SecurityEvent.event_type.ilike(f"%{search}%"),
-                                SecurityEvent.target.ilike(f"%{search}%"),
-                                SecurityEvent.ip.ilike(f"%{search}%")))
-    rows = list(db.scalars(query.offset(cursor).limit(limit + 1)).all())
-    more = len(rows) > limit
-    rows = rows[:limit]
+    security_rows = list(db.scalars(
+        select(SecurityEvent).order_by(SecurityEvent.created_at.desc(), SecurityEvent.id.desc()).limit(5000)
+    ).all())
     alert_map: dict[int, str] = {}
     for alert in db.scalars(select(SecurityAlert)).all():
         for event_id in alert.event_ids or []:
             alert_map[event_id] = str(alert.id)
-    # Raw IP and user-agent are privileged data; regular SOC access receives masked IP.
-    return {"items": [_event(db, row, reveal_pii=reveal_pii and user.role == "admin",
-                             alert_id=alert_map.get(row.id)) for row in rows],
-            "nextCursor": str(cursor + len(rows)) if more else None}
+    items = [
+        _event(db, row, reveal_pii=reveal_pii and user.role == "admin",
+               alert_id=alert_map.get(row.id))
+        for row in security_rows
+    ]
+    # Merge existing append-only platform audit records into the SOC activity stream.
+    for audit in db.scalars(select(AuditEvent).order_by(AuditEvent.created_at.desc()).limit(5000)).all():
+        if audit.action == "challenge.submission":
+            continue  # flag submissions already have richer telemetry above
+        actor = db.get(User, audit.actor_user_id) if audit.actor_user_id else None
+        details = audit.details or {}
+        team = db.get(Team, details.get("team_id")) if isinstance(details.get("team_id"), int) else None
+        items.append({
+            "id": f"audit-{audit.id}", "ts": _ms(audit.created_at), "type": audit.action,
+            "category": "platform", "userId": str(audit.actor_user_id or ""),
+            "user": (actor.email if reveal_pii else f"User #{audit.actor_user_id}") if actor else "System",
+            "team": team.name if team else "—", "teamId": str(team.id) if team else "",
+            "university": "", "ip": "—", "country": "XX", "device": "unknown",
+            "ua": "", "session": "", "target": f"{audit.resource_type}:{audit.resource_id or ''}",
+            "result": audit.outcome, "severity": "High" if audit.outcome in {"failure", "denied"} else "Info",
+            "requestId": f"audit-{audit.id}", "alertId": None,
+        })
+    if since is not None:
+        items = [item for item in items if item["ts"] >= since]
+    if severity:
+        items = [item for item in items if item["severity"].lower() == severity.lower()]
+    if category:
+        items = [item for item in items if item["category"] == category]
+    if search:
+        needle = search.lower()
+        items = [item for item in items if needle in " ".join(str(value) for value in item.values()).lower()]
+    items.sort(key=lambda item: (item["ts"], item["id"]), reverse=True)
+    page = items[cursor:cursor + limit]
+    more = cursor + len(page) < len(items)
+    return {"items": page, "nextCursor": str(cursor + len(page)) if more else None}
 
 
 @router.get("/alerts")
