@@ -5,21 +5,26 @@ PII is omitted from list responses unless the caller explicitly requests a privi
 """
 
 import csv
+import hashlib
 import io
+import secrets
 from datetime import UTC, datetime, timedelta
+from urllib.parse import quote
 from typing import Any
 
-from fastapi import APIRouter, Body, Depends, Header, HTTPException, Query, Response
+from fastapi import APIRouter, BackgroundTasks, Body, Depends, Header, HTTPException, Query, Response
 from fastapi.responses import JSONResponse
 import jwt
-from sqlalchemy import or_, select
+from sqlalchemy import or_, select, update
 from sqlalchemy.orm import Session
 
 from app.api.dependencies import require_roles
 from app.core.config import get_settings
 from app.core.security import verify_password
+from app.core.email import send_password_reset_email
 from app.db.session import get_db
 from app.models.audit_event import AuditEvent
+from app.models.password_reset_token import PasswordResetToken
 from app.models.security_operations import (
     SecurityAlert, SecurityCase, SecurityEvent, SecurityReport, SecurityResponseAction,
     SecurityRule, SecurityRuleChange, SecuritySavedView, SecuritySettings, SecurityWatchlist,
@@ -603,10 +608,10 @@ def report_data(report_id: int, db: Session = Depends(get_db), user: User = _ADM
 
 
 @router.post("/response-actions", status_code=201)
-def create_response_action(payload: dict[str, Any] = Body(...), db: Session = Depends(get_db),
-                           user: User = _ADMIN) -> dict[str, Any]:
+def create_response_action(background_tasks: BackgroundTasks, payload: dict[str, Any] = Body(...),
+                           db: Session = Depends(get_db), user: User = _ADMIN) -> dict[str, Any]:
     action_type = payload.get("type")
-    supported = {"revoke_sessions", "lock_user", "require_reset", "warn"}
+    supported = {"revoke_sessions", "lock_user", "require_reset"}
     if action_type not in supported:
         raise HTTPException(501, "This response action is not yet connected to an enforceable MEDUSA control")
     target = payload.get("target") or {}
@@ -628,7 +633,22 @@ def create_response_action(payload: dict[str, Any] = Body(...), db: Session = De
             subject.is_active = False
             subject.auth_version += 1
         else:
-            raise HTTPException(501, "Require password reset is not yet supported by the account model")
+            settings = get_settings()
+            now = datetime.now(UTC)
+            db.execute(
+                update(PasswordResetToken)
+                .where(PasswordResetToken.user_id == subject.id, PasswordResetToken.used_at.is_(None))
+                .values(used_at=now)
+            )
+            raw_token = secrets.token_urlsafe(32)
+            db.add(PasswordResetToken(
+                user_id=subject.id,
+                token_hash=hashlib.sha256(raw_token.encode("utf-8")).hexdigest(),
+                expires_at=now + timedelta(minutes=settings.password_reset_token_expire_minutes),
+            ))
+            subject.auth_version += 1
+            reset_link = f"{settings.password_reset_url}?token={quote(raw_token, safe='')}"
+            background_tasks.add_task(send_password_reset_email, subject.email, reset_link)
     row = SecurityResponseAction(action_type=action_type, target=target, reason=reason,
         case_id=int(payload["caseId"]) if payload.get("caseId") else None,
         actor_user_id=user.id, preview=[f"Action {action_type} applied to {target.get('label', target['id'])}."],
@@ -641,6 +661,27 @@ def create_response_action(payload: dict[str, Any] = Body(...), db: Session = De
     return {"id": str(row.id), "type": row.action_type, "target": row.target, "reason": row.reason,
             "caseId": str(row.case_id) if row.case_id else None, "at": _ms(row.created_at),
             "by": user.email, "preview": row.preview, "revertible": row.revertible, "reverted": row.reverted}
+
+
+@router.post("/response-actions/{action_id}/revert")
+def revert_response_action(action_id: int, db: Session = Depends(get_db),
+                           user: User = _ADMIN) -> dict[str, Any]:
+    row = db.get(SecurityResponseAction, action_id)
+    if row is None:
+        raise HTTPException(404, "Response action not found")
+    if not row.revertible or row.reverted:
+        raise HTTPException(409, "This response action cannot be reverted")
+    if row.action_type != "lock_user" or row.target.get("type") != "user":
+        raise HTTPException(409, "No safe reversal is available for this response action")
+    subject = db.get(User, int(row.target["id"]))
+    if subject is None:
+        raise HTTPException(404, "Target user not found")
+    subject.is_active = True
+    row.reverted = True
+    record_audit_event(db, actor=user, action="soc.response.reverted",
+                       resource_type="soc_response_action", resource_id=row.id)
+    db.commit()
+    return {"id": str(row.id), "reverted": True}
 
 
 @router.get("/response-actions")
