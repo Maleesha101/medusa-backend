@@ -35,7 +35,7 @@ RULES = (
 )
 
 
-SUPPORTED_RULES = {"r_bruteauth", "r_bruteforce"}
+SUPPORTED_RULES = {"r_bruteauth", "r_bruteforce", "r_ratestreak"}
 
 
 def seed_rules(db: Session) -> None:
@@ -46,7 +46,8 @@ def seed_rules(db: Session) -> None:
                 id=rule_id, name=name, rule_group=group, severity=severity,
                 threshold=threshold, window_minutes=window, enabled=supported,
                 scope=("Authentication" if rule_id == "r_bruteauth" else
-                       "Flag submissions" if rule_id == "r_bruteforce" else "Telemetry unavailable"),
+                       "Flag submissions" if rule_id == "r_bruteforce" else
+                       "Platform rate limits" if rule_id == "r_ratestreak" else "Telemetry unavailable"),
             ))
     db.flush()
 
@@ -95,9 +96,10 @@ def evaluate_security_rules(db: Session, event: SecurityEvent) -> None:
     supported = {
         "auth.login.failure": ("r_bruteauth", "ip", str(event.ip or "unknown")),
         "flag.submit": ("r_bruteforce", "team", str(event.team_id or "unknown")),
+        "platform.rate_limited": ("r_ratestreak", "ip", str(event.ip or "unknown")),
     }
     match = supported.get(event.event_type)
-    if not match or event.result not in {"failure", "incorrect"}:
+    if not match or event.result not in {"failure", "incorrect", "blocked"}:
         return
     settings_row = db.get(SecuritySettings, 1)
     settings = settings_row.config if settings_row else {}
@@ -115,7 +117,7 @@ def evaluate_security_rules(db: Session, event: SecurityEvent) -> None:
     since = now - timedelta(minutes=rule.window_minutes)
     query = select(func.count(SecurityEvent.id)).where(
         SecurityEvent.event_type == event.event_type,
-        SecurityEvent.result.in_(("failure", "incorrect")),
+        SecurityEvent.result.in_(("blocked",) if event.event_type == "platform.rate_limited" else ("failure", "incorrect")),
         SecurityEvent.created_at >= since,
     )
     if entity_type == "user" and event.user_id is not None:
