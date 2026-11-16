@@ -40,7 +40,7 @@ RULES = (
 )
 
 
-SUPPORTED_RULES = {"r_bruteauth", "r_bruteforce", "r_ratestreak"}
+SUPPORTED_RULES = {"r_bruteauth", "r_bruteforce", "r_ratestreak", "r_multiaccount", "r_spray", "r_rapidsignup"}
 
 
 def seed_rules(db: Session) -> None:
@@ -52,7 +52,9 @@ def seed_rules(db: Session) -> None:
                 threshold=threshold, window_minutes=window, enabled=supported,
                 scope=("Authentication" if rule_id == "r_bruteauth" else
                        "Flag submissions" if rule_id == "r_bruteforce" else
-                       "Platform rate limits" if rule_id == "r_ratestreak" else "Telemetry unavailable"),
+                       "Platform rate limits" if rule_id == "r_ratestreak" else
+                       "Authentication" if rule_id in {"r_multiaccount", "r_spray", "r_rapidsignup"}
+                       else "Telemetry unavailable"),
             ))
     db.flush()
 
@@ -91,6 +93,7 @@ def record_security_event(
     db.add(event)
     db.flush()
     evaluate_security_rules(db, event)
+    evaluate_behavioral_rules(db, event)
     return event
 
 
@@ -182,3 +185,91 @@ def evaluate_security_rules(db: Session, event: SecurityEvent) -> None:
         alert.risk_score = min(100, 40 + count)
         alert.event_ids = list(dict.fromkeys([*(alert.event_ids or []), event.id]))
     rule.fired_24h += 1
+
+
+def evaluate_behavioral_rules(db: Session, event: SecurityEvent) -> None:
+    """Detect account spraying, shared-source multi-accounting, and signup bursts."""
+    if not event.ip:
+        return
+    now = event.created_at or datetime.now(UTC)
+    if event.event_type == "auth.login.failure":
+        checks = [("r_spray", ("auth.login.failure",))]
+    elif event.event_type in {"auth.login.success", "auth.register.success"}:
+        checks = [("r_multiaccount", ("auth.login.success", "auth.register.success"))]
+        if event.event_type == "auth.register.success":
+            checks.append(("r_rapidsignup", ("auth.register.success",)))
+    else:
+        return
+
+    settings_row = db.get(SecuritySettings, 1)
+    settings = settings_row.config if settings_row else {}
+    for raw_network in str(settings.get("allowIps", "")).replace(",", "\\n").splitlines():
+        try:
+            if ipaddress.ip_address(event.ip) in ipaddress.ip_network(raw_network.strip(), strict=False):
+                return
+        except ValueError:
+            continue
+
+    for rule_id, event_types in checks:
+        rule = db.get(SecurityRule, rule_id)
+        if rule is None or not rule.enabled:
+            continue
+        since = now - timedelta(minutes=rule.window_minutes)
+        query = select(func.count(func.distinct(SecurityEvent.user_id))).where(
+            SecurityEvent.event_type.in_(event_types),
+            SecurityEvent.ip == event.ip,
+            SecurityEvent.user_id.is_not(None),
+            SecurityEvent.created_at >= since,
+        )
+        count = int(db.scalar(query) or 0)
+        rule.last_eval = now
+        if count < rule.threshold:
+            continue
+        entity_type = "ip"
+        entity_id = event.ip
+        suppression_hours = int(settings.get("suppressionHours", 0) or 0)
+        if suppression_hours:
+            recently_resolved = db.scalar(
+                select(SecurityAlert.id).where(
+                    SecurityAlert.rule_id == rule_id,
+                    SecurityAlert.entity_type == entity_type,
+                    SecurityAlert.entity_id == entity_id,
+                    SecurityAlert.status.in_(("Resolved", "False positive")),
+                    SecurityAlert.last_seen >= now - timedelta(hours=suppression_hours),
+                ).limit(1)
+            )
+            if recently_resolved:
+                continue
+        alert = db.scalar(
+            select(SecurityAlert).where(
+                SecurityAlert.rule_id == rule_id,
+                SecurityAlert.entity_type == entity_type,
+                SecurityAlert.entity_id == entity_id,
+                SecurityAlert.status.notin_(("Resolved", "False positive")),
+            )
+        )
+        if alert is None:
+            alert = SecurityAlert(
+                title=f"{rule.name}: threshold exceeded",
+                severity=rule.severity,
+                status="New",
+                rule_id=rule.id,
+                rule_name=rule.name,
+                entity_type=entity_type,
+                entity_id=entity_id,
+                entity_label=entity_id,
+                first_seen=now,
+                last_seen=now,
+                event_count=count,
+                explanation=f"{count} distinct accounts from this source within {rule.window_minutes} minutes (threshold: {rule.threshold}).",
+                risk_score=min(100, 45 + count),
+                event_ids=[event.id],
+                steps=["Review account creation and authentication history", "Check for shared ownership or credential abuse"],
+            )
+            db.add(alert)
+        else:
+            alert.last_seen = now
+            alert.event_count = count
+            alert.risk_score = min(100, 45 + count)
+            alert.event_ids = list(dict.fromkeys([*(alert.event_ids or []), event.id]))
+        rule.fired_24h += 1
