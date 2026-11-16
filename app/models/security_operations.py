@@ -21,6 +21,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
 
+
 class SecurityEvent(Base):
     __tablename__ = "soc_events"
     __table_args__ = (
