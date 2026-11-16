@@ -102,7 +102,7 @@ def evaluate_security_rules(db: Session, event: SecurityEvent) -> None:
     settings_row = db.get(SecuritySettings, 1)
     settings = settings_row.config if settings_row else {}
     if event.ip:
-        for raw_network in str(settings.get("allowIps", "")).replace(",", "\\n").splitlines():
+        for raw_network in str(settings.get("allowIps", "")).replace(",", "\n").splitlines():
             try:
                 if ipaddress.ip_address(event.ip) in ipaddress.ip_network(raw_network.strip(), strict=False):
                     return
