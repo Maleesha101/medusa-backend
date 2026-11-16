@@ -90,8 +90,11 @@ def test_soc_investigations_rules_settings_and_reports_are_persisted(client, ses
 
     created = client.post(
         "/api/v1/soc/cases",
-        json={"title": "Investigate suspicious login activity", "severity": "High",
-              "description": "Repeated authentication failures."},
+        json={
+            "title": "Investigate suspicious login activity",
+            "severity": "High",
+            "description": "Repeated authentication failures.",
+        },
         headers=headers,
     )
     assert created.status_code == 201
@@ -148,7 +151,6 @@ def test_soc_endpoints_require_authentication(client):
     assert client.get("/api/v1/soc/cases").status_code == 401
 
 
-
 def test_soc_detects_multiple_accounts_sharing_one_source_ip(client, session_factory):
     token = _make_admin(client, session_factory, "soc-multi-account-admin@example.com")
     for index in range(3):
@@ -160,7 +162,6 @@ def test_soc_detects_multiple_accounts_sharing_one_source_ip(client, session_fac
     )
     assert response.status_code == 200
     assert any(item["ruleId"] == "r_multiaccount" for item in response.json()["items"])
-
 
 
 def test_soc_require_password_reset_action_blocks_login_until_reset(
