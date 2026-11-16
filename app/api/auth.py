@@ -78,6 +78,16 @@ def register(
             status_code=409, detail="An account with this email already exists"
         ) from None
     db.refresh(user)
+    record_security_event(
+        db,
+        request=request,
+        event_type="auth.register.success",
+        category="auth",
+        user=user,
+        result="success",
+        target="register",
+    )
+    db.commit()
     return user
 
 
