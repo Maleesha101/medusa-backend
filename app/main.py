@@ -29,6 +29,7 @@ def create_app() -> FastAPI:
         version="0.6.0",
         description="MEDUSA CTF and competition management API",
     )
+
     @application.middleware("http")
     async def capture_rate_limited_requests(request: Request, call_next):
         response = await call_next(request)
