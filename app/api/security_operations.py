@@ -104,10 +104,12 @@ def _mask_ip(value: str | None) -> str:
 
 
 def _alert(row: SecurityAlert) -> dict[str, Any]:
+    entity_id = _mask_ip(row.entity_id) if row.entity_type == "ip" else row.entity_id
+    entity_label = _mask_ip(row.entity_label) if row.entity_type == "ip" else row.entity_label
     return {
         "id": str(row.id), "title": row.title, "severity": row.severity, "status": row.status,
         "ruleId": row.rule_id, "rule": row.rule_name,
-        "entity": {"type": row.entity_type, "id": row.entity_id, "label": row.entity_label},
+        "entity": {"type": row.entity_type, "id": entity_id, "label": entity_label},
         "firstSeen": _ms(row.first_seen), "lastSeen": _ms(row.last_seen),
         "eventCount": row.event_count, "assignee": row.assignee,
         "caseId": str(row.case_id) if row.case_id else None, "explanation": row.explanation,
@@ -120,7 +122,16 @@ def _alert(row: SecurityAlert) -> dict[str, Any]:
 def _case(row: SecurityCase) -> dict[str, Any]:
     return {
         "id": str(row.id), "title": row.title, "status": row.status, "severity": row.severity,
-        "assignee": row.assignee, "entities": row.entities or [], "created": _ms(row.created_at),
+        "assignee": row.assignee,
+        "entities": [
+            {
+                **entity,
+                "id": _mask_ip(entity["id"]) if entity.get("type") == "ip" else entity.get("id"),
+                "label": _mask_ip(entity["label"]) if entity.get("type") == "ip" else entity.get("label"),
+            }
+            for entity in row.entities or []
+        ],
+        "created": _ms(row.created_at),
         "updated": _ms(row.updated_at), "outcome": row.outcome, "description": row.description,
         "evidence": row.evidence or [], "notes": row.notes or [], "decisions": row.decisions or [],
         "attachments": row.attachments or [],
@@ -480,14 +491,23 @@ def list_entities(db: Session = Depends(get_db), user: User = _ADMIN) -> dict[st
 @router.get("/watchlist")
 def list_watchlist(db: Session = Depends(get_db), user: User = _ADMIN) -> dict[str, Any]:
     rows = list(db.scalars(select(SecurityWatchlist).order_by(SecurityWatchlist.created_at.desc())).all())
-    return {"items": [{"type": row.entity_type, "id": row.entity_id, "label": row.label,
-                       "note": row.note} for row in rows]}
+    return {"items": [
+        {
+            "type": row.entity_type,
+            "id": _mask_ip(row.entity_id) if row.entity_type == "ip" else row.entity_id,
+            "label": _mask_ip(row.label) if row.entity_type == "ip" else row.label,
+            "note": row.note,
+        }
+        for row in rows
+    ]}
 
 
 @router.post("/watchlist", status_code=201)
 def add_watchlist(payload: dict[str, str] = Body(...), db: Session = Depends(get_db),
                   user: User = _ADMIN) -> dict[str, Any]:
     kind, entity_id = payload.get("type", ""), payload.get("id", "").strip()
+    if kind == "ip":
+        entity_id = _mask_ip(entity_id)
     if kind not in {"user", "team", "ip", "device"} or not entity_id or len(entity_id) > 128:
         raise HTTPException(422, "Invalid watchlist entity")
     row = db.scalar(select(SecurityWatchlist).where(SecurityWatchlist.entity_type == kind,
