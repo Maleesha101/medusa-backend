@@ -44,7 +44,7 @@ from app.models.security_operations import (
 from app.models.team import Team
 from app.models.user import User
 from app.services.audit import record_audit_event
-from app.services.security_operations import seed_rules
+from app.services.security_operations import SUPPORTED_RULES, seed_rules
 
 router = APIRouter(prefix="/soc", tags=["security-operations"])
 _ADMIN = Depends(require_roles("admin"))
@@ -422,7 +422,7 @@ def update_rule(rule_id: str, payload: dict[str, Any] = Body(...),
     allowed = {"enabled", "severity", "threshold", "windowMin", "scope"}
     if set(payload) - allowed:
         raise HTTPException(422, "Unsupported rule fields")
-    if payload.get("enabled") is True and rule_id not in {"r_bruteauth", "r_bruteforce"}:
+    if payload.get("enabled") is True and rule_id not in SUPPORTED_RULES:
         raise HTTPException(409, "This rule is disabled because its source telemetry is not implemented")
     before = {key: getattr(row, {"windowMin": "window_minutes"}.get(key, key)) for key in payload}
     for key, value in payload.items():
