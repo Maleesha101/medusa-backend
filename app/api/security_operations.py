@@ -4,6 +4,8 @@ SOC data is persisted server-side. All endpoints are restricted to platform admi
 PII is omitted from list responses unless the caller explicitly requests a privileged view.
 """
 
+import csv
+import io
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -516,20 +518,47 @@ def create_report(payload: dict[str, Any] = Body(...), db: Session = Depends(get
 
 @router.get("/reports/{report_id}/data")
 def report_data(report_id: int, db: Session = Depends(get_db), user: User = _ADMIN) -> Response:
-    row = db.get(SecurityReport, report_id)
-    if row is None:
+    report = db.get(SecurityReport, report_id)
+    if report is None:
         raise HTTPException(404, "Report not found")
-    since = datetime.now(UTC) - timedelta(days=int(row.parameters.get("days", 1)))
-    if row.report_type == "events":
-        events = list(db.scalars(select(SecurityEvent).where(SecurityEvent.created_at >= since)
-                                 .order_by(SecurityEvent.created_at.desc()).limit(5000)).all())
-        content = "\n".join([",".join(["id","time","type","category","result","severity","ip"])] +
-            [",".join([str(e.id),str(_ms(e.created_at)),e.event_type,e.category,e.result,e.severity,_mask_ip(e.ip)]) for e in events])
-        return Response(content, media_type="text/csv", headers={"Content-Disposition": f'attachment; filename="soc-report-{report_id}.csv"'})
-    return {"report": {"id": row.id, "title": row.title, "type": row.report_type},
-            "events": int(db.query(SecurityEvent).filter(SecurityEvent.created_at >= since).count()),
-            "alerts": int(db.query(SecurityAlert).filter(SecurityAlert.last_seen >= since).count()),
-            "cases": int(db.query(SecurityCase).filter(SecurityCase.created_at >= since).count())}
+    since_ms = report.parameters.get("since")
+    since = (datetime.fromtimestamp(int(since_ms) / 1000, UTC) if since_ms is not None
+             else datetime.now(UTC) - timedelta(days=int(report.parameters.get("days", 1))))
+    output = io.StringIO()
+    writer = csv.writer(output)
+    if report.report_type == "events":
+        writer.writerow(["id", "timestamp", "type", "category", "actor_id", "result", "severity", "ip", "target"])
+        for event in db.scalars(select(SecurityEvent).where(SecurityEvent.created_at >= since)
+                                .order_by(SecurityEvent.created_at.desc()).limit(5000)).all():
+            writer.writerow([event.id, _ms(event.created_at), event.event_type, event.category,
+                             event.user_id or "", event.result, event.severity, _mask_ip(event.ip), event.target])
+    elif report.report_type == "alerts":
+        writer.writerow(["id", "title", "severity", "status", "rule", "entity_type", "entity_id",
+                         "first_seen", "last_seen", "event_count", "assignee", "case_id"])
+        for alert in db.scalars(select(SecurityAlert).where(SecurityAlert.last_seen >= since)
+                                .order_by(SecurityAlert.last_seen.desc()).limit(5000)).all():
+            writer.writerow([alert.id, alert.title, alert.severity, alert.status, alert.rule_name,
+                             alert.entity_type, alert.entity_id, _ms(alert.first_seen), _ms(alert.last_seen),
+                             alert.event_count, alert.assignee, alert.case_id or ""])
+    elif report.report_type == "rules":
+        writer.writerow(["id", "name", "group", "enabled", "severity", "threshold", "window_minutes",
+                         "scope", "fired_24h", "last_eval"])
+        for rule in db.scalars(select(SecurityRule).order_by(SecurityRule.id)).all():
+            writer.writerow([rule.id, rule.name, rule.rule_group, rule.enabled, rule.severity,
+                             rule.threshold, rule.window_minutes, rule.scope, rule.fired_24h, _ms(rule.last_eval)])
+    else:
+        writer.writerow(["generated_at", "window_start", "events", "open_alerts", "critical_alerts",
+                         "unresolved_cases", "enabled_rules"])
+        writer.writerow([_ms(datetime.now(UTC)), _ms(since),
+                         db.query(SecurityEvent).filter(SecurityEvent.created_at >= since).count(),
+                         db.query(SecurityAlert).filter(SecurityAlert.status.notin_(("Resolved", "False positive"))).count(),
+                         db.query(SecurityAlert).filter(SecurityAlert.severity == "Critical",
+                             SecurityAlert.status.notin_(("Resolved", "False positive"))).count(),
+                         db.query(SecurityCase).filter(SecurityCase.status != "Closed").count(),
+                         db.query(SecurityRule).filter(SecurityRule.enabled.is_(True)).count()])
+    return Response(output.getvalue(), media_type="text/csv",
+                    headers={"Content-Disposition": f'attachment; filename="medusa-soc-{report.report_type}-{report_id}.csv"'})
+
 
 
 @router.post("/response-actions", status_code=201)
