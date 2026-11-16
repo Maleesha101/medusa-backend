@@ -3,7 +3,7 @@
 import hashlib
 import hmac
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -28,6 +28,7 @@ from app.schemas.submissions import (
 )
 from app.services.audit import record_audit_event
 from app.services.scoreboard_events import publish_scoreboard_update
+from app.services.security_operations import record_security_event
 
 router = APIRouter(tags=["submissions"])
 
@@ -89,6 +90,7 @@ def set_challenge_flag(
 def submit_challenge_flag(
     challenge_id: int,
     payload: ChallengeSubmissionCreate,
+    request: Request,
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ) -> ChallengeSubmissionResult:
@@ -173,6 +175,18 @@ def submit_challenge_flag(
     db.add(attempt)
     try:
         db.flush()
+        record_security_event(
+            db,
+            request=request,
+            event_type="flag.submit",
+            category="submission",
+            user=user,
+            team_id=team.id,
+            target=str(challenge.id),
+            result="success" if is_correct else "failure",
+            severity="Info",
+            details={"submission_id": attempt.id},
+        )
         record_audit_event(
             db,
             actor=user,
