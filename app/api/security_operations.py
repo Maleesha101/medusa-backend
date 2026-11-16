@@ -14,7 +14,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 from urllib.parse import quote
 
-from fastapi import APIRouter, BackgroundTasks, Body, Depends, Header, HTTPException, Query, Response
+from fastapi import APIRouter, BackgroundTasks, Body, Depends, Header, HTTPException, Query, Request, Response
 from fastapi.responses import JSONResponse
 import jwt
 from sqlalchemy import or_, select, update
@@ -23,6 +23,7 @@ from sqlalchemy.orm import Session
 from app.api.dependencies import require_roles
 from app.core.config import get_settings
 from app.core.email import send_password_reset_email
+from app.core.rate_limit import consume_rate_limit
 from app.core.security import verify_password
 from app.db.session import get_db
 from app.models.audit_event import AuditEvent
@@ -130,13 +131,40 @@ def _alert_or_404(db: Session, alert_id: int) -> SecurityAlert:
 
 
 @router.post("/reauth")
-def reauthenticate(payload: dict[str, str] = Body(...), user: User = _ADMIN) -> dict[str, Any]:
+def reauthenticate(
+    request: Request,
+    payload: dict[str, str] = Body(...),
+    db: Session = Depends(get_db),
+    user: User = _ADMIN,
+) -> dict[str, Any]:
+    consume_rate_limit(
+        key=f"medusa:soc:reauth:user:{user.id}",
+        limit=5,
+        window_seconds=300,
+    )
+    if request.client is not None:
+        consume_rate_limit(
+            key=f"medusa:soc:reauth:ip:{request.client.host}",
+            limit=10,
+            window_seconds=300,
+        )
     password = payload.get("password", "")
     if not verify_password(password, user.password_hash):
         raise HTTPException(401, "Password confirmation failed")
     expires = datetime.now(UTC) + timedelta(minutes=5)
-    token = jwt.encode({"sub": str(user.id), "scope": "soc:pii", "exp": expires},
-                       get_settings().auth_secret_key, algorithm="HS256")
+    token = jwt.encode(
+        {"sub": str(user.id), "scope": "soc:pii", "exp": expires},
+        get_settings().auth_secret_key,
+        algorithm="HS256",
+    )
+    record_audit_event(
+        db,
+        actor=user,
+        action="soc.pii.reauthenticated",
+        resource_type="soc_events",
+        details={"expires_at": _ms(expires)},
+    )
+    db.commit()
     return {"token": token, "expiresAt": _ms(expires)}
 
 
