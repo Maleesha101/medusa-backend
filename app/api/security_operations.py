@@ -611,6 +611,23 @@ def report_data(report_id: int, db: Session = Depends(get_db), user: User = _ADM
         for event in db.scalars(event_query.order_by(SecurityEvent.created_at.desc()).limit(5000)).all():
             writer.writerow([event.id, _ms(event.created_at), event.event_type, event.category,
                              event.user_id or "", event.result, event.severity, _mask_ip(event.ip), event.target])
+        audit_rows = db.scalars(
+            select(AuditEvent).where(AuditEvent.created_at >= since)
+            .order_by(AuditEvent.created_at.desc()).limit(5000)
+        ).all()
+        for audit in audit_rows:
+            if audit.action == "challenge.submission":
+                continue
+            if search and search.lower() not in (
+                audit.action + " " + audit.resource_type + " " + str(audit.resource_id or "")
+            ).lower():
+                continue
+            writer.writerow([
+                f"audit-{audit.id}", _ms(audit.created_at), audit.action, "platform",
+                audit.actor_user_id or "", audit.outcome,
+                "High" if audit.outcome in {"failure", "denied"} else "Info", "—",
+                f"{audit.resource_type}:{audit.resource_id or ''}",
+            ])
     elif report.report_type == "alerts":
         writer.writerow(["id", "title", "severity", "status", "rule", "entity_type", "entity_id",
                          "first_seen", "last_seen", "event_count", "assignee", "case_id"])
