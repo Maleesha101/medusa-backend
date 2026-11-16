@@ -46,7 +46,7 @@ def _ms(value: datetime | None) -> int:
     return int(value.timestamp() * 1000)
 
 
-def _event(db: Session, row: SecurityEvent, *, reveal_pii: bool = False) -> dict[str, Any]:
+def _event(db: Session, row: SecurityEvent, *, reveal_pii: bool = False, alert_id: str | None = None) -> dict[str, Any]:
     user = db.get(User, row.user_id) if row.user_id else None
     team = db.get(Team, row.team_id) if row.team_id else None
     return {
@@ -57,8 +57,7 @@ def _event(db: Session, row: SecurityEvent, *, reveal_pii: bool = False) -> dict
         "country": row.country, "device": row.device, "ua": row.user_agent if reveal_pii else "",
         "session": row.session_id or "", "target": row.target, "result": row.result,
         "severity": row.severity, "requestId": row.request_id,
-        "alertId": next((str(a.id) for a in db.scalars(select(SecurityAlert)).all()
-                         if row.id in (a.event_ids or [])), None),
+        "alertId": alert_id,
     }
 
 
@@ -130,8 +129,13 @@ def list_events(
     rows = list(db.scalars(query.offset(cursor).limit(limit + 1)).all())
     more = len(rows) > limit
     rows = rows[:limit]
+    alert_map: dict[int, str] = {}
+    for alert in db.scalars(select(SecurityAlert)).all():
+        for event_id in alert.event_ids or []:
+            alert_map[event_id] = str(alert.id)
     # Raw IP and user-agent are privileged data; regular SOC access receives masked IP.
-    return {"items": [_event(db, row, reveal_pii=reveal_pii and user.role == "admin") for row in rows],
+    return {"items": [_event(db, row, reveal_pii=reveal_pii and user.role == "admin",
+                             alert_id=alert_map.get(row.id)) for row in rows],
             "nextCursor": str(cursor + len(rows)) if more else None}
 
 
