@@ -1,5 +1,6 @@
 from sqlalchemy import select
 
+from app.api import security_operations as soc_api
 from app.models.security_operations import SecurityEvent
 from app.models.user import User
 
@@ -159,3 +160,52 @@ def test_soc_detects_multiple_accounts_sharing_one_source_ip(client, session_fac
     )
     assert response.status_code == 200
     assert any(item["ruleId"] == "r_multiaccount" for item in response.json()["items"])
+
+
+
+def test_soc_require_password_reset_action_blocks_login_until_reset(
+    client, session_factory, monkeypatch
+):
+    admin_token = _make_admin(client, session_factory, "soc-reset-admin@example.com")
+    user_email = "soc-reset-target@example.com"
+    _, password = _register_and_login(client, user_email)
+    with session_factory() as db:
+        target = db.scalar(select(User).where(User.email == user_email))
+        assert target is not None
+        target_id = target.id
+
+    delivered = []
+    monkeypatch.setattr(
+        soc_api,
+        "send_password_reset_email",
+        lambda email, link: delivered.append((email, link)),
+    )
+    action = client.post(
+        "/api/v1/soc/response-actions",
+        json={
+            "type": "require_reset",
+            "target": {"type": "user", "id": str(target_id), "label": user_email},
+            "reason": "Require credential rotation after suspicious login activity.",
+        },
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert action.status_code == 201
+    assert delivered and delivered[0][0] == user_email
+
+    blocked_login = client.post(
+        "/api/v1/auth/token",
+        data={"username": user_email, "password": password},
+    )
+    assert blocked_login.status_code == 403
+
+    raw_token = delivered[0][1].split("token=", 1)[1]
+    reset = client.post(
+        "/api/v1/auth/password-reset/confirm",
+        json={"token": raw_token, "new_password": "a-new-very-long-password"},
+    )
+    assert reset.status_code == 204
+    login = client.post(
+        "/api/v1/auth/token",
+        data={"username": user_email, "password": "a-new-very-long-password"},
+    )
+    assert login.status_code == 200
