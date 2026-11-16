@@ -8,6 +8,7 @@ PII is omitted from list responses unless the caller explicitly requests a privi
 
 import csv
 import hashlib
+import ipaddress
 import io
 import secrets
 from datetime import UTC, datetime, timedelta
@@ -556,6 +557,12 @@ def update_soc_settings(payload: dict[str, Any] = Body(...), db: Session = Depen
         raise HTTPException(422, "Suppression must be between 0 and 168 hours")
     if config["webhook"] and not str(config["webhook"]).startswith("https://"):
         raise HTTPException(422, "Webhook URL must use HTTPS")
+    for network in str(config["allowIps"]).replace(",", "\\n").splitlines():
+        if network.strip():
+            try:
+                ipaddress.ip_network(network.strip(), strict=False)
+            except ValueError:
+                raise HTTPException(422, "Trusted IP entries must be valid IP addresses or CIDR ranges") from None
     row = db.get(SecuritySettings, 1)
     if row is None:
         row = SecuritySettings(id=1, config=config, updated_by_user_id=user.id)
