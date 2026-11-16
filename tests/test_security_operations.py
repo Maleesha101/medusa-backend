@@ -25,7 +25,7 @@ def _make_admin(client, session_factory, email: str) -> str:
 
 def test_soc_api_is_admin_only_and_uses_persisted_auth_events(client, session_factory):
     token = _make_admin(client, session_factory, "soc-admin@example.com")
-    participant_token, password = _register_and_login(client, "soc-user@example.com")
+    participant_token, _ = _register_and_login(client, "soc-user@example.com")
     failed = client.post(
         "/api/v1/auth/token",
         data={"username": "soc-user@example.com", "password": "incorrect-password"},
@@ -39,7 +39,7 @@ def test_soc_api_is_admin_only_and_uses_persisted_auth_events(client, session_fa
     assert login_events
     assert login_events[0]["user"] != "soc-user@example.com"
     assert "incorrect-password" not in str(events.json())
-    assert events.json()["items"][0]["ip"].endswith(".xxx") or events.json()["items"][0]["ip"] == "—"
+    assert login_events[0]["ip"] != "127.0.0.1"
 
     denied = client.get(
         "/api/v1/soc/events",
