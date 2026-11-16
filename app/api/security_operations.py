@@ -557,7 +557,7 @@ def update_soc_settings(payload: dict[str, Any] = Body(...), db: Session = Depen
         raise HTTPException(422, "Suppression must be between 0 and 168 hours")
     if config["webhook"] and not str(config["webhook"]).startswith("https://"):
         raise HTTPException(422, "Webhook URL must use HTTPS")
-    for network in str(config["allowIps"]).replace(",", "\\n").splitlines():
+    for network in str(config["allowIps"]).replace(",", "\n").splitlines():
         if network.strip():
             try:
                 ipaddress.ip_network(network.strip(), strict=False)
