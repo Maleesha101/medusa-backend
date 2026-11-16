@@ -41,6 +41,21 @@ def test_soc_api_is_admin_only_and_uses_persisted_auth_events(client, session_fa
     assert "incorrect-password" not in str(events.json())
     assert login_events[0]["ip"] != "127.0.0.1"
 
+    pii_denied = client.get("/api/v1/soc/events?reveal_pii=true", headers=headers)
+    assert pii_denied.status_code == 403
+    confirmation = client.post(
+        "/api/v1/soc/reauth",
+        json={"password": "a-very-long-test-password"},
+        headers=headers,
+    )
+    assert confirmation.status_code == 200
+    revealed = client.get(
+        "/api/v1/soc/events?reveal_pii=true",
+        headers={**headers, "X-SOC-Reauth": confirmation.json()["token"]},
+    )
+    assert revealed.status_code == 200
+    assert any(item["user"] == "soc-user@example.com" for item in revealed.json()["items"])
+
     denied = client.get(
         "/api/v1/soc/events",
         headers={"Authorization": f"Bearer {participant_token}"},
