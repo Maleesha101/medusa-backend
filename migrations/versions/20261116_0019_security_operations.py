@@ -9,8 +9,8 @@ from collections.abc import Sequence
 
 from alembic import op
 
-from app.models import security_operations  # noqa: F401
 from app.db.base import Base
+from app.models import security_operations  # noqa: F401
 
 revision: str = "20261116_0019"
 down_revision: str | None = "20261108_0018"
