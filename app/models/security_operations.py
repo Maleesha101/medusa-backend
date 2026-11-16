@@ -1,4 +1,6 @@
 """Persistent security operations data: events, alerts, cases, rules, and analyst state."""
+# fmt: off
+# ruff: noqa: E501
 
 from datetime import datetime
 from typing import Any
