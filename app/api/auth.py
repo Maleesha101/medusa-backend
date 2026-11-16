@@ -24,7 +24,7 @@ from app.core.security import (
 from app.core.token_revocation import revoke_access_token
 from app.db.session import get_db
 from app.models.password_reset_token import PasswordResetToken
-from app.models.user import User
+from app.models.user import User\nfrom app.services.security_operations import record_security_event
 from app.schemas.auth import (
     PasswordResetConfirm,
     PasswordResetRequest,
@@ -109,12 +109,33 @@ def issue_token(
         or not verify_password(form_data.password, user.password_hash)
         or not user.is_active
     ):
+        record_security_event(
+            db,
+            request=request,
+            event_type="auth.login.failure",
+            category="auth",
+            user=user,
+            result="failure",
+            severity="High",
+            target="login",
+        )
+        db.commit()
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid email or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
+    record_security_event(
+        db,
+        request=request,
+        event_type="auth.login.success",
+        category="auth",
+        user=user,
+        result="success",
+        target="login",
+    )
+    db.commit()
     token, expires_in = create_access_token(str(user.id), user.auth_version)
     return TokenResponse(access_token=token, expires_in=expires_in)
 
