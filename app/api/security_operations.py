@@ -9,11 +9,14 @@ import io
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from fastapi import APIRouter, Body, Depends, HTTPException, Query, Request, Response, status
-from sqlalchemy import or_, select
+from fastapi import APIRouter, Body, Depends, Header, HTTPException, Query, Response
+import jwt
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.api.dependencies import require_roles
+from app.core.config import get_settings
+from app.core.security import verify_password
 from app.db.session import get_db
 from app.models.audit_event import AuditEvent
 from app.models.security_operations import (
@@ -110,13 +113,33 @@ def _alert_or_404(db: Session, alert_id: int) -> SecurityAlert:
     return row
 
 
+@router.post("/reauth")
+def reauthenticate(payload: dict[str, str] = Body(...), user: User = _ADMIN) -> dict[str, Any]:
+    password = payload.get("password", "")
+    if not verify_password(password, user.password_hash):
+        raise HTTPException(401, "Password confirmation failed")
+    expires = datetime.now(UTC) + timedelta(minutes=5)
+    token = jwt.encode({"sub": str(user.id), "scope": "soc:pii", "exp": expires},
+                       get_settings().auth_secret_key, algorithm="HS256")
+    return {"token": token, "expiresAt": _ms(expires)}
+
+
 @router.get("/events")
 def list_events(
     limit: int = Query(100, ge=1, le=5000), cursor: int = Query(0, ge=0),
     since: int | None = None, severity: str | None = None, category: str | None = None,
     search: str | None = Query(None, max_length=200), reveal_pii: bool = False,
+    reauth_token: str | None = Header(None, alias="X-SOC-Reauth"),
     db: Session = Depends(get_db), user: User = _ADMIN,
 ) -> dict[str, Any]:
+    if reveal_pii:
+        try:
+            claims = jwt.decode(reauth_token or "", get_settings().auth_secret_key,
+                                algorithms=["HS256"], options={"require": ["exp", "sub"]})
+        except jwt.InvalidTokenError:
+            raise HTTPException(403, "Recent password confirmation is required to reveal PII") from None
+        if claims.get("sub") != str(user.id) or claims.get("scope") != "soc:pii":
+            raise HTTPException(403, "Recent password confirmation is required to reveal PII")
     security_rows = list(db.scalars(
         select(SecurityEvent).order_by(SecurityEvent.created_at.desc(), SecurityEvent.id.desc()).limit(5000)
     ).all())
