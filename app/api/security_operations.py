@@ -213,6 +213,10 @@ def list_events(
             "result": audit.outcome, "severity": "High" if audit.outcome in {"failure", "denied"} else "Info",
             "requestId": f"audit-{audit.id}", "alertId": None,
         })
+    settings_row = db.get(SecuritySettings, 1)
+    retention_days = int((settings_row.config if settings_row else {}).get("retentionDays", 90))
+    retention_cutoff = _ms(datetime.now(UTC) - timedelta(days=retention_days))
+    items = [item for item in items if item["ts"] >= retention_cutoff]
     if since is not None:
         items = [item for item in items if item["ts"] >= since]
     if severity:
@@ -596,6 +600,9 @@ def report_data(report_id: int, db: Session = Depends(get_db), user: User = _ADM
     since_ms = report.parameters.get("since")
     since = (datetime.fromtimestamp(int(since_ms) / 1000, UTC) if since_ms is not None
              else datetime.now(UTC) - timedelta(days=int(report.parameters.get("days", 1))))
+    settings_row = db.get(SecuritySettings, 1)
+    retention_days = int((settings_row.config if settings_row else {}).get("retentionDays", 90))
+    since = max(since, datetime.now(UTC) - timedelta(days=retention_days))
     output = io.StringIO()
     writer = csv.writer(output)
     if report.report_type == "events":
