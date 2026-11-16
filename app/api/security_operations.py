@@ -52,11 +52,13 @@ def _event(db: Session, row: SecurityEvent, *, reveal_pii: bool = False) -> dict
     return {
         "id": str(row.id), "ts": _ms(row.created_at), "type": row.event_type,
         "category": row.category, "userId": str(row.user_id or ""),
-        "user": user.email if user else "Unknown", "team": team.name if team else "—",
+        "user": (user.email if reveal_pii else f"User #{row.user_id}") if user else "Unknown", "team": team.name if team else "—",
         "teamId": str(row.team_id or ""), "university": "", "ip": row.ip if reveal_pii else _mask_ip(row.ip),
         "country": row.country, "device": row.device, "ua": row.user_agent if reveal_pii else "",
         "session": row.session_id or "", "target": row.target, "result": row.result,
         "severity": row.severity, "requestId": row.request_id,
+        "alertId": next((str(a.id) for a in db.scalars(select(SecurityAlert)).all()
+                         if row.id in (a.event_ids or [])), None),
     }
 
 
@@ -360,6 +362,13 @@ def list_entities(db: Session = Depends(get_db), user: User = _ADMIN) -> dict[st
         item["watchlisted"] = (kind, key) in watched
         item["riskScore"] = min(100, item["eventCount"] * 5)
     return {"items": list(groups.values())}
+
+
+@router.get("/watchlist")
+def list_watchlist(db: Session = Depends(get_db), user: User = _ADMIN) -> dict[str, Any]:
+    rows = list(db.scalars(select(SecurityWatchlist).order_by(SecurityWatchlist.created_at.desc())).all())
+    return {"items": [{"type": row.entity_type, "id": row.entity_id, "label": row.label,
+                       "note": row.note} for row in rows]}
 
 
 @router.post("/watchlist", status_code=201)
