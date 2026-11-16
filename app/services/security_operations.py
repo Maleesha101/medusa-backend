@@ -32,11 +32,19 @@ RULES = (
 )
 
 
+SUPPORTED_RULES = {"r_bruteauth", "r_bruteforce"}
+
+
 def seed_rules(db: Session) -> None:
     for rule_id, name, group, severity, threshold, window in RULES:
         if db.get(SecurityRule, rule_id) is None:
-            db.add(SecurityRule(id=rule_id, name=name, rule_group=group, severity=severity,
-                                threshold=threshold, window_minutes=window))
+            supported = rule_id in SUPPORTED_RULES
+            db.add(SecurityRule(
+                id=rule_id, name=name, rule_group=group, severity=severity,
+                threshold=threshold, window_minutes=window, enabled=supported,
+                scope=("Authentication" if rule_id == "r_bruteauth" else
+                       "Flag submissions" if rule_id == "r_bruteforce" else "Telemetry unavailable"),
+            ))
     db.flush()
 
 
@@ -82,7 +90,7 @@ def evaluate_security_rules(db: Session, event: SecurityEvent) -> None:
     seed_rules(db)
     now = event.created_at or datetime.now(UTC)
     supported = {
-        "auth.login.failure": ("r_bruteauth", "user", str(event.user_id or event.ip or "unknown")),
+        "auth.login.failure": ("r_bruteauth", "ip", str(event.ip or "unknown")),
         "flag.submit": ("r_bruteforce", "team", str(event.team_id or "unknown")),
     }
     match = supported.get(event.event_type)
