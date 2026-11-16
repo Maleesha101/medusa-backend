@@ -12,7 +12,12 @@ from fastapi import Request
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.models.security_operations import SecurityAlert, SecurityEvent, SecurityRule, SecuritySettings
+from app.models.security_operations import (
+    SecurityAlert,
+    SecurityEvent,
+    SecurityRule,
+    SecuritySettings,
+)
 from app.models.user import User
 
 RULES = (
