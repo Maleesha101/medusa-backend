@@ -1,4 +1,6 @@
-from fastapi import FastAPI
+import logging
+
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.audit_events import router as audit_events_router
@@ -16,6 +18,8 @@ from app.api.security_operations import router as security_operations_router
 from app.api.submissions import router as submissions_router
 from app.api.teams import router as teams_router
 from app.core.config import get_settings
+from app.db.session import SessionLocal
+from app.services.security_operations import record_security_event
 
 
 def create_app() -> FastAPI:
@@ -25,6 +29,26 @@ def create_app() -> FastAPI:
         version="0.6.0",
         description="MEDUSA CTF and competition management API",
     )
+    @application.middleware("http")
+    async def capture_rate_limited_requests(request: Request, call_next):
+        response = await call_next(request)
+        if response.status_code == 429 and "/soc/reauth" not in request.url.path:
+            try:
+                with SessionLocal() as db:
+                    record_security_event(
+                        db,
+                        request=request,
+                        event_type="platform.rate_limited",
+                        category="platform",
+                        result="blocked",
+                        severity="Medium",
+                        target=request.url.path,
+                    )
+                    db.commit()
+            except Exception:
+                logging.getLogger(__name__).exception("Could not persist rate-limit telemetry")
+        return response
+
     application.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origins,
