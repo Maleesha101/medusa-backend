@@ -7,8 +7,8 @@ Create Date: 2026-11-16
 
 from collections.abc import Sequence
 
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
 
 from app.db.base import Base
 from app.models import security_operations  # noqa: F401
